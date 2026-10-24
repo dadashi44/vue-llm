@@ -7,6 +7,9 @@ export type { UseCompletionOptions, UseCompletionReturn } from './composables/us
 export { useObject } from './composables/use-object'
 export type { UseObjectOptions, UseObjectReturn } from './composables/use-object'
 
+export { wrapProvider, loggingMiddleware, retryMiddleware, headerMiddleware } from './middleware'
+export type { Middleware } from './middleware'
+
 export type {
   UIMessage,
   UIMessagePart,
