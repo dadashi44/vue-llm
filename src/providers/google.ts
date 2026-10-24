@@ -1,0 +1,254 @@
+import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types'
+
+export interface GoogleConfig {
+  apiKey: string
+  baseURL?: string
+  dangerouslyAllowBrowser?: boolean
+}
+
+export function createGoogle(config: GoogleConfig): LLMProvider {
+  return {
+    id: 'google',
+    supportsStreaming: true,
+
+    validateConfig() {
+      if (!config.apiKey) {
+        throw new Error('[vue-llm] Google AI API key is required. Pass it via createGoogle({ apiKey: "..." })')
+      }
+      if (!config.dangerouslyAllowBrowser && typeof window !== 'undefined') {
+        throw new Error(
+          '[vue-llm] API keys must not be used in the browser. '
+          + 'Use a server proxy to keep keys safe. '
+          + 'If you understand the risk, set dangerouslyAllowBrowser: true.',
+        )
+      }
+    },
+
+    async chat(request: ChatRequest): Promise<ChatStreamResult> {
+      const baseURL = config.baseURL ?? 'https://generativelanguage.googleapis.com/v1beta'
+      const url = `${baseURL}/models/${request.model}:streamGenerateContent?alt=sse&key=${config.apiKey}`
+
+      const body: GeminiRequest = {
+        contents: toGeminiContents(request.messages),
+      }
+
+      const systemMsg = request.messages.find(m => m.role === 'system')
+      if (systemMsg) {
+        body.systemInstruction = {
+          parts: [{ text: typeof systemMsg.content === 'string' ? systemMsg.content : '' }],
+        }
+      }
+
+      if (request.tools?.length) {
+        body.tools = [{
+          functionDeclarations: request.tools.map(t => ({
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters,
+          })),
+        }]
+      }
+
+      body.generationConfig = {
+        ...(request.providerOptions?.response_format as Record<string, unknown>)?.type === 'json_object'
+          ? { responseMimeType: 'application/json' }
+          : {},
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: request.signal,
+      })
+
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(`[vue-llm] Google AI API error ${response.status}: ${text}`)
+      }
+
+      if (!response.body) {
+        throw new Error('[vue-llm] No response body from Google AI')
+      }
+
+      let resolveResponse: (value: ChatResponse) => void
+      const responsePromise = new Promise<ChatResponse>(r => { resolveResponse = r })
+
+      const toolCallIdMap = new Map<string, string>()
+      let toolCallCounter = 0
+
+      const stream = response.body
+        .pipeThrough(new TextDecoderStream())
+        .pipeThrough(new TransformStream<string, string>({
+          buffer: '',
+          transform(chunk, controller) {
+            (this as unknown as { buffer: string }).buffer += chunk
+            const lines = (this as unknown as { buffer: string }).buffer.split('\n')
+            ;(this as unknown as { buffer: string }).buffer = lines.pop()!
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                controller.enqueue(line.slice(6))
+              }
+            }
+          },
+          flush(controller) {
+            const remaining = (this as unknown as { buffer: string }).buffer.trim()
+            if (remaining.startsWith('data: ')) {
+              controller.enqueue(remaining.slice(6))
+            }
+          },
+        } as Transformer<string, string>))
+        .pipeThrough(new TransformStream<string, ChatStreamChunk>({
+          transform(data, controller) {
+            let parsed: GeminiStreamChunk
+            try {
+              parsed = JSON.parse(data)
+            } catch {
+              return
+            }
+
+            const candidate = parsed.candidates?.[0]
+            if (!candidate) return
+
+            const parts = candidate.content?.parts
+            if (parts) {
+              for (const part of parts) {
+                if (part.text !== undefined) {
+                  controller.enqueue({ type: 'text-delta', text: part.text })
+                }
+
+                if (part.functionCall) {
+                  const id = `tc_gemini_${++toolCallCounter}`
+                  toolCallIdMap.set(part.functionCall.name, id)
+
+                  controller.enqueue({
+                    type: 'tool-call-start',
+                    toolCallId: id,
+                    toolName: part.functionCall.name,
+                  })
+                  controller.enqueue({
+                    type: 'tool-call-delta',
+                    toolCallId: id,
+                    args: JSON.stringify(part.functionCall.args ?? {}),
+                  })
+                  controller.enqueue({ type: 'tool-call-end', toolCallId: id })
+                }
+              }
+            }
+
+            if (candidate.finishReason) {
+              const reason = candidate.finishReason === 'STOP' ? 'stop'
+                : candidate.finishReason === 'MAX_TOKENS' ? 'length'
+                : candidate.finishReason === 'TOOL_CALLS' ? 'tool-calls'
+                : 'stop'
+
+              const usage = parsed.usageMetadata
+              controller.enqueue({
+                type: 'finish',
+                finishReason: reason,
+                usage: usage ? {
+                  promptTokens: usage.promptTokenCount ?? 0,
+                  completionTokens: usage.candidatesTokenCount ?? 0,
+                  totalTokens: usage.totalTokenCount ?? 0,
+                } : undefined,
+              })
+
+              resolveResponse!({
+                finishReason: reason,
+                usage: usage ? {
+                  promptTokens: usage.promptTokenCount ?? 0,
+                  completionTokens: usage.candidatesTokenCount ?? 0,
+                  totalTokens: usage.totalTokenCount ?? 0,
+                } : undefined,
+              })
+            }
+          },
+        }))
+
+      return { stream, response: responsePromise }
+    },
+  }
+}
+
+function toGeminiContents(messages: ChatMessage[]): GeminiContent[] {
+  const contents: GeminiContent[] = []
+
+  for (const msg of messages) {
+    if (msg.role === 'system') continue
+
+    if (msg.role === 'tool') {
+      contents.push({
+        role: 'function',
+        parts: [{
+          functionResponse: {
+            name: msg.toolCallId ?? '',
+            response: { result: typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content },
+          },
+        }],
+      })
+      continue
+    }
+
+    const role = msg.role === 'assistant' ? 'model' : 'user'
+    const parts: GeminiPart[] = []
+
+    if (typeof msg.content === 'string') {
+      if (msg.content) parts.push({ text: msg.content })
+    } else if (Array.isArray(msg.content)) {
+      for (const part of msg.content) {
+        if (part.type === 'text') parts.push({ text: part.text })
+        if (part.type === 'image') {
+          parts.push({ inlineData: { mimeType: 'image/jpeg', data: part.url } })
+        }
+      }
+    }
+
+    if (msg.toolCalls?.length) {
+      for (const tc of msg.toolCalls) {
+        parts.push({
+          functionCall: {
+            name: tc.name,
+            args: typeof tc.args === 'string' ? JSON.parse(tc.args) : tc.args,
+          },
+        })
+      }
+    }
+
+    if (parts.length > 0) {
+      contents.push({ role, parts })
+    }
+  }
+
+  return contents
+}
+
+interface GeminiRequest {
+  contents: GeminiContent[]
+  systemInstruction?: { parts: { text: string }[] }
+  tools?: { functionDeclarations: { name: string; description: string; parameters: Record<string, unknown> }[] }[]
+  generationConfig?: Record<string, unknown>
+}
+
+interface GeminiContent {
+  role: string
+  parts: GeminiPart[]
+}
+
+interface GeminiPart {
+  text?: string
+  functionCall?: { name: string; args?: unknown }
+  functionResponse?: { name: string; response: unknown }
+  inlineData?: { mimeType: string; data: string }
+}
+
+interface GeminiStreamChunk {
+  candidates?: {
+    content?: { parts: GeminiPart[] }
+    finishReason?: string
+  }[]
+  usageMetadata?: {
+    promptTokenCount?: number
+    candidatesTokenCount?: number
+    totalTokenCount?: number
+  }
+}
