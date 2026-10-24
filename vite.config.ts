@@ -11,6 +11,7 @@ export default defineConfig({
         providers: resolve(__dirname, 'src/providers.ts'),
         components: resolve(__dirname, 'src/components.ts'),
         nuxt: resolve(__dirname, 'src/nuxt.ts'),
+        server: resolve(__dirname, 'src/server.ts'),
       },
       formats: ['es', 'cjs'],
     },
