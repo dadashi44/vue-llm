@@ -1,6 +1,6 @@
 {
   "name": "vue-llm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "AI/LLM composables for Vue — useChat, useCompletion, streaming, multi-provider. The missing AI SDK for Vue.",
   "keywords": [
