@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useChat } from 'vue-llm'
-import { createOpenAI, createAnthropic, createOllama } from 'vue-llm/providers'
+import { createOpenAI, createAnthropic, createGoogle, createOllama } from 'vue-llm/providers'
 
-const providerType = ref<'openai' | 'anthropic' | 'ollama'>('openai')
+const providerType = ref<'openai' | 'anthropic' | 'google' | 'ollama'>('openai')
 const apiKey = ref('')
 const modelId = ref('gpt-4o')
 const systemPrompt = ref('')
@@ -11,6 +11,7 @@ const systemPrompt = ref('')
 const providerModels = {
   openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
   anthropic: ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414', 'claude-opus-4-20250514'],
+  google: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash'],
   ollama: ['llama3', 'mistral', 'codellama', 'phi3'],
 }
 
@@ -22,6 +23,8 @@ function createProvider() {
       return createOpenAI({ apiKey: apiKey.value, dangerouslyAllowBrowser: true })
     case 'anthropic':
       return createAnthropic({ apiKey: apiKey.value, dangerouslyAllowBrowser: true })
+    case 'google':
+      return createGoogle({ apiKey: apiKey.value, dangerouslyAllowBrowser: true })
     case 'ollama':
       return createOllama()
   }
