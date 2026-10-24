@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 import type { ChatStatus, UIMessage, UIMessagePart } from '../types'
-import type { ChatStreamChunk, FinishReason, Usage } from '../providers/types'
+import type { ChatStreamChunk } from '../providers/types'
+import type { FinishReason, Usage } from '../types'
 
 export interface StreamCallbacks {
   onFinish?: (message: UIMessage, context: { finishReason: FinishReason; usage?: Usage }) => void

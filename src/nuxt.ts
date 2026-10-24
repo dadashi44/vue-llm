@@ -7,7 +7,7 @@ export default defineNuxtModule({
     compatibility: { nuxt: '>=3.5.0' },
   },
   defaults: {},
-  setup(_options, nuxt) {
+  setup(_options: Record<string, never>, nuxt: { options: { runtimeConfig: Record<string, unknown> } }) {
     const resolver = createResolver(import.meta.url)
 
     addImports([

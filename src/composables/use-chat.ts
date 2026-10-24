@@ -72,11 +72,12 @@ export function useChat(options: UseChatOptions): UseChatReturn {
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         })
 
-        for (const tc of msg.parts.filter(p => p.type === 'tool-call' && p.state === 'result')) {
+        for (const part of msg.parts) {
+          if (part.type !== 'tool-call' || part.state !== 'result') continue
           chatMessages.push({
             role: 'tool',
-            content: JSON.stringify(tc.result),
-            toolCallId: tc.toolCallId,
+            content: JSON.stringify(part.result),
+            toolCallId: part.toolCallId,
           })
         }
       }
@@ -159,7 +160,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
 
   const regenerate = async (): Promise<void> => {
     const msgs = messages.value
-    const lastAssistant = msgs.findLastIndex(m => m.role === 'assistant')
+    const lastAssistant = msgs.reduce((acc, m, i) => m.role === 'assistant' ? i : acc, -1)
     if (lastAssistant === -1) return
 
     messages.value = msgs.slice(0, lastAssistant)
