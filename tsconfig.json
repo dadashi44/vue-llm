@@ -17,6 +17,6 @@
       "vue-llm/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "test/**/*", "playground/**/*"],
+  "include": ["src/**/*", "test/**/*"],
   "exclude": ["node_modules", "dist"]
 }

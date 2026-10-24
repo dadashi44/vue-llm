@@ -154,7 +154,7 @@ describe('useChat', () => {
     await nextTick()
 
     stop()
-    controllerRef?.close()
+    if (controllerRef) (controllerRef as ReadableStreamDefaultController<ChatStreamChunk>).close()
 
     await promise
     expect(status.value).toBe('ready')
