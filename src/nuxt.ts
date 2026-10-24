@@ -12,6 +12,8 @@ export default defineNuxtModule({
 
     addImports([
       { name: 'useChat', from: resolver.resolve('./index') },
+      { name: 'useCompletion', from: resolver.resolve('./index') },
+      { name: 'useObject', from: resolver.resolve('./index') },
     ])
 
     addImports([
