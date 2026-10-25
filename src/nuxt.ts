@@ -27,9 +27,9 @@ export default defineNuxtModule({
     ])
 
     nuxt.options.runtimeConfig.vueLlm = {
-      ...nuxt.options.runtimeConfig.vueLlm as Record<string, string>,
       openaiApiKey: '',
       anthropicApiKey: '',
+      ...nuxt.options.runtimeConfig.vueLlm as Record<string, string>,
     }
   },
 })
