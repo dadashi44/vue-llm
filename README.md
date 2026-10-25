@@ -10,6 +10,7 @@ AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
 - **Multi-provider** — OpenAI, Anthropic, Ollama out of the box
 - **Tool calling** — automatic roundtrips with `onToolCall` handler
 - **Attachments** — images, PDFs, audio and text files, mapped per provider
+- **Persistence** — restore chat history from localStorage or any custom backend
 - **Streaming** — SSE parser, text/reasoning/tool-call deltas
 - **Security** — `dangerouslyAllowBrowser` guard protects API keys
 - **Nuxt module** — auto-imports, server-side runtime config
@@ -155,6 +156,35 @@ Remote URLs work too: `sendMessage({ files: { type: 'file', mediaType: 'image/pn
 
 Unsupported combinations throw a descriptive error before the request is sent.
 
+## Persistence
+
+Pass a `storage` adapter and a stable `id` — history is restored on init and saved whenever a response finishes.
+
+```ts
+import { useChat, createWebStorage } from 'vue-llm'
+
+const { messages, setMessages, isRestored } = useChat({
+  id: 'support-chat',
+  provider: ai,
+  model: 'gpt-4o',
+  storage: createWebStorage(), // localStorage, key `vue-llm:chat:support-chat`
+})
+
+setMessages([]) // clears history and removes the stored entry
+```
+
+`createWebStorage({ prefix, storage: sessionStorage })` customizes the key and backend; `createMemoryStorage()` is handy for tests. Any object implementing `ChatStorage` works, sync or async:
+
+```ts
+const storage: ChatStorage = {
+  load: id => fetch(`/api/chats/${id}`).then(r => r.json()),
+  save: (id, messages) => fetch(`/api/chats/${id}`, { method: 'PUT', body: JSON.stringify(messages) }).then(() => {}),
+  remove: id => fetch(`/api/chats/${id}`, { method: 'DELETE' }).then(() => {}),
+}
+```
+
+With async storage, `isRestored` is `false` until `load` resolves. Messages sent before that are kept — stored history won't overwrite them. Storage errors go to `onError`. Attachments are stored as data URLs, so large files can exceed the ~5 MB localStorage quota.
+
 ## System Prompt
 
 ```ts
@@ -183,6 +213,7 @@ Returns a reactive chat interface.
 | `onFinish` | `(msg, ctx) => void` | Called when response completes |
 | `onError` | `(error) => void` | Error handler |
 | `maxToolRoundtrips` | `number` | Max tool call rounds (default: 5) |
+| `storage` | `ChatStorage` | Persist and restore messages by `id` |
 
 **Returns:**
 
@@ -199,6 +230,7 @@ Returns a reactive chat interface.
 | `setMessages` | `(msgs) => void` | Replace message history |
 | `handleSubmit` | `() => Promise` | Form submit handler (sends `input.value`) |
 | `clearError` | `() => void` | Clear error state |
+| `isRestored` | `Ref<boolean>` | `false` while async storage is loading |
 
 ## Nuxt Module
 
