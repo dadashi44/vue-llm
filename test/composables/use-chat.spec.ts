@@ -190,4 +190,54 @@ describe('useChat', () => {
     expect(status.value).toBe('ready')
     expect(error.value).toBeUndefined()
   })
+
+  describe('attachments', () => {
+    it('adds file parts to the user message and sends them as content parts', async () => {
+      const provider = createMockProvider([
+        { type: 'text-delta', text: 'A cat' },
+        { type: 'finish', finishReason: 'stop' },
+      ])
+
+      const { messages, sendMessage } = useChat({ provider, model: 'test' })
+      const file = new File(['img'], 'cat.png', { type: 'image/png' })
+
+      await sendMessage({ text: 'What is this?', files: [file] })
+
+      expect(messages.value[0].parts).toEqual([
+        { type: 'file', mediaType: 'image/png', url: 'data:image/png;base64,aW1n', filename: 'cat.png' },
+        { type: 'text', text: 'What is this?', state: 'done' },
+      ])
+
+      const request = vi.mocked(provider.chat).mock.calls[0][0]
+      expect(request.messages[0]).toEqual({
+        role: 'user',
+        content: [
+          { type: 'file', url: 'data:image/png;base64,aW1n', mediaType: 'image/png', filename: 'cat.png' },
+          { type: 'text', text: 'What is this?' },
+        ],
+      })
+    })
+
+    it('sends files without text', async () => {
+      const provider = createMockProvider([{ type: 'finish', finishReason: 'stop' }])
+      const { messages, sendMessage } = useChat({ provider, model: 'test' })
+
+      await sendMessage({ files: { type: 'file', mediaType: 'image/png', url: 'https://example.com/a.png' } })
+
+      expect(messages.value[0].parts).toEqual([
+        { type: 'file', mediaType: 'image/png', url: 'https://example.com/a.png' },
+      ])
+      expect(provider.chat).toHaveBeenCalledOnce()
+    })
+
+    it('keeps plain string content for text-only user messages', async () => {
+      const provider = createMockProvider([{ type: 'finish', finishReason: 'stop' }])
+      const { sendMessage } = useChat({ provider, model: 'test' })
+
+      await sendMessage('Hi')
+
+      const request = vi.mocked(provider.chat).mock.calls[0][0]
+      expect(request.messages[0]).toEqual({ role: 'user', content: 'Hi' })
+    })
+  })
 })

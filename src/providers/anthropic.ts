@@ -1,5 +1,6 @@
-import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types'
+import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, ContentPart, LLMProvider } from './types'
 import { SSEParserStream } from '../core/sse-parser'
+import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file'
 
 export interface AnthropicConfig {
   apiKey: string
@@ -196,16 +197,34 @@ function toAnthropicMessages(messages: ChatMessage[]): unknown[] {
 
     return {
       role: msg.role,
-      content: typeof msg.content === 'string' ? msg.content : msg.content.map(part => {
-        if (part.type === 'text') return { type: 'text', text: part.text }
-        if (part.type === 'image') {
-          return {
-            type: 'image',
-            source: { type: 'url', url: part.url, media_type: part.mediaType ?? 'image/png' },
-          }
-        }
-        return part
-      }),
+      content: typeof msg.content === 'string' ? msg.content : msg.content.map(toAnthropicContentPart),
     }
   })
+}
+
+function toAnthropicContentPart(part: ContentPart): unknown {
+  if (part.type === 'text') return { type: 'text', text: part.text }
+
+  const file = resolveFilePart(part)
+  const source = file.base64
+    ? { type: 'base64', media_type: file.mediaType, data: file.base64 }
+    : { type: 'url', url: file.url }
+
+  if (file.mediaType.startsWith('image/')) {
+    return { type: 'image', source }
+  }
+
+  if (file.mediaType === 'application/pdf') {
+    return { type: 'document', source, ...(file.filename ? { title: file.filename } : {}) }
+  }
+
+  if (isTextMediaType(file.mediaType) && file.base64) {
+    return {
+      type: 'document',
+      source: { type: 'text', media_type: 'text/plain', data: decodeBase64Text(file.base64) },
+      ...(file.filename ? { title: file.filename } : {}),
+    }
+  }
+
+  throw new Error(`[vue-llm] Anthropic does not support ${file.mediaType} attachments`)
 }

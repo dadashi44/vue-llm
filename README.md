@@ -9,6 +9,7 @@ AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
 - **`useChat()`** — reactive composable with streaming, abort, regenerate
 - **Multi-provider** — OpenAI, Anthropic, Ollama out of the box
 - **Tool calling** — automatic roundtrips with `onToolCall` handler
+- **Attachments** — images, PDFs, audio and text files, mapped per provider
 - **Streaming** — SSE parser, text/reasoning/tool-call deltas
 - **Security** — `dangerouslyAllowBrowser` guard protects API keys
 - **Nuxt module** — auto-imports, server-side runtime config
@@ -121,6 +122,39 @@ const { messages, sendMessage } = useChat({
 })
 ```
 
+## Attachments
+
+Pass `File`, `FileList` or `FilePart` objects to `sendMessage`. Files are read as data URLs and stored as `file` parts on the user message.
+
+```vue
+<script setup lang="ts">
+const { messages, input, sendMessage } = useChat({ provider: ai, model: 'gpt-4o' })
+const files = ref<FileList>()
+
+async function submit() {
+  await sendMessage({ text: input.value, files: files.value })
+  input.value = ''
+  files.value = undefined
+}
+</script>
+
+<template>
+  <input type="file" multiple @change="files = ($event.target as HTMLInputElement).files ?? undefined">
+  <input v-model="input" @keydown.enter="submit">
+</template>
+```
+
+Remote URLs work too: `sendMessage({ files: { type: 'file', mediaType: 'image/png', url: 'https://…' } })`.
+
+| Provider | Images | PDF | Audio | Text | Remote URLs |
+|----------|--------|-----|-------|------|-------------|
+| OpenAI | ✓ | ✓ | wav, mp3 | inlined as text | images only |
+| Anthropic | ✓ | ✓ | — | ✓ (document) | images, PDF |
+| Google | ✓ | ✓ | ✓ | ✓ | `fileData` URIs |
+| Ollama | ✓ | — | — | inlined as text | — |
+
+Unsupported combinations throw a descriptive error before the request is sent.
+
 ## System Prompt
 
 ```ts
@@ -159,7 +193,7 @@ Returns a reactive chat interface.
 | `error` | `Ref<Error \| undefined>` | Last error |
 | `input` | `Ref<string>` | Input text (v-model) |
 | `isLoading` | `ComputedRef<boolean>` | Whether a request is active |
-| `sendMessage` | `(text?) => Promise` | Send a message |
+| `sendMessage` | `(text? \| { text?, files? }) => Promise` | Send a message, optionally with attachments |
 | `stop` | `() => void` | Abort current stream |
 | `regenerate` | `() => Promise` | Re-send last user message |
 | `setMessages` | `(msgs) => void` | Replace message history |

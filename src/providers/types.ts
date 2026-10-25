@@ -25,6 +25,7 @@ export interface ChatMessage {
 export type ContentPart =
   | { type: 'text'; text: string }
   | { type: 'image'; url: string; mediaType?: string }
+  | { type: 'file'; url: string; mediaType: string; filename?: string }
 
 export interface ToolCall {
   id: string
