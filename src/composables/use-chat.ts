@@ -1,8 +1,11 @@
 import { computed, type MaybeRef, onScopeDispose, ref, type Ref, toValue } from 'vue'
-import type { ChatStatus, FinishReason, ToolDefinition, UIMessage, Usage } from '../types'
-import type { ChatMessage, LLMProvider } from '../providers/types'
+import type { ChatStatus, FinishReason, ToolDefinition, UIMessage, UIMessagePart, Usage } from '../types'
+import type { ChatMessage, ContentPart, LLMProvider } from '../providers/types'
 import { StreamProcessor } from '../core/stream-processor'
 import { generateId } from '../utils/generate-id'
+import { convertFilesToParts, type FileInput } from '../utils/file'
+
+export type SendMessageInput = string | { text?: string; files?: FileInput }
 
 export interface UseChatOptions {
   id?: string
@@ -25,7 +28,7 @@ export interface UseChatReturn {
   error: Ref<Error | undefined>
   id: string
   input: Ref<string>
-  sendMessage: (message?: string | { text?: string; files?: File[] }) => Promise<void>
+  sendMessage: (message?: SendMessageInput) => Promise<void>
   regenerate: () => Promise<void>
   stop: () => void
   setMessages: (messages: UIMessage[] | ((prev: UIMessage[]) => UIMessage[])) => void
@@ -64,7 +67,19 @@ export function useChat(options: UseChatOptions): UseChatReturn {
         .map(p => ({ id: p.toolCallId, name: p.toolName, args: p.args }))
 
       if (msg.role === 'user') {
-        chatMessages.push({ role: 'user', content: text })
+        const fileParts = msg.parts.filter(p => p.type === 'file')
+        if (fileParts.length === 0) {
+          chatMessages.push({ role: 'user', content: text })
+          continue
+        }
+        const content: ContentPart[] = fileParts.map(p => ({
+          type: 'file',
+          url: p.url,
+          mediaType: p.mediaType,
+          filename: p.filename,
+        }))
+        if (text) content.push({ type: 'text', text })
+        chatMessages.push({ role: 'user', content })
       } else if (msg.role === 'assistant') {
         chatMessages.push({
           role: 'assistant',
@@ -120,21 +135,33 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     }
   }
 
-  const sendMessage = async (message?: string | { text?: string; files?: File[] }): Promise<void> => {
+  const sendMessage = async (message?: SendMessageInput): Promise<void> => {
     const text = typeof message === 'string'
       ? message
       : message?.text ?? input.value
 
-    if (!text.trim()) return
+    let fileParts: UIMessagePart[]
+    try {
+      fileParts = typeof message === 'object' ? await convertFilesToParts(message.files) : []
+    } catch (err) {
+      error.value = err instanceof Error ? err : new Error(String(err))
+      status.value = 'error'
+      return
+    }
+
+    if (!text.trim() && fileParts.length === 0) return
 
     if (typeof message !== 'object' || message === null || !('text' in message)) {
       input.value = ''
     }
 
+    const parts: UIMessagePart[] = [...fileParts]
+    if (text.trim()) parts.push({ type: 'text', text, state: 'done' })
+
     const userMessage: UIMessage = {
       id: generateId(),
       role: 'user',
-      parts: [{ type: 'text', text, state: 'done' }],
+      parts,
       createdAt: new Date(),
     }
 

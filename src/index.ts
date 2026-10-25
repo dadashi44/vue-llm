@@ -1,5 +1,5 @@
 export { useChat } from './composables/use-chat'
-export type { UseChatOptions, UseChatReturn } from './composables/use-chat'
+export type { UseChatOptions, UseChatReturn, SendMessageInput } from './composables/use-chat'
 
 export { useCompletion } from './composables/use-completion'
 export type { UseCompletionOptions, UseCompletionReturn } from './composables/use-completion'
@@ -9,6 +9,9 @@ export type { UseObjectOptions, UseObjectReturn } from './composables/use-object
 
 export { wrapProvider, loggingMiddleware, retryMiddleware, headerMiddleware } from './middleware'
 export type { Middleware } from './middleware'
+
+export { fileToDataURL, convertFilesToParts } from './utils/file'
+export type { FileInput } from './utils/file'
 
 export type {
   UIMessage,
@@ -28,6 +31,7 @@ export type {
   LLMProvider,
   ChatRequest,
   ChatMessage,
+  ContentPart,
   ChatStreamResult,
   ChatStreamChunk,
   ChatResponse,

@@ -1,4 +1,5 @@
 import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types'
+import { resolveFilePart } from '../utils/file'
 
 export interface GoogleConfig {
   apiKey: string
@@ -197,8 +198,11 @@ function toGeminiContents(messages: ChatMessage[]): GeminiContent[] {
     } else if (Array.isArray(msg.content)) {
       for (const part of msg.content) {
         if (part.type === 'text') parts.push({ text: part.text })
-        if (part.type === 'image') {
-          parts.push({ inlineData: { mimeType: 'image/jpeg', data: part.url } })
+        if (part.type === 'image' || part.type === 'file') {
+          const file = resolveFilePart(part)
+          parts.push(file.base64
+            ? { inlineData: { mimeType: file.mediaType, data: file.base64 } }
+            : { fileData: { mimeType: file.mediaType, fileUri: file.url } })
         }
       }
     }
@@ -239,6 +243,7 @@ interface GeminiPart {
   functionCall?: { name: string; args?: unknown }
   functionResponse?: { name: string; response: unknown }
   inlineData?: { mimeType: string; data: string }
+  fileData?: { mimeType: string; fileUri: string }
 }
 
 interface GeminiStreamChunk {

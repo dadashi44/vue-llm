@@ -1,5 +1,6 @@
-import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types'
+import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, ContentPart, LLMProvider } from './types'
 import { SSEParserStream } from '../core/sse-parser'
+import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file'
 
 export interface OpenAIConfig {
   apiKey: string
@@ -171,13 +172,48 @@ function toOpenAIMessages(messages: ChatMessage[]): unknown[] {
 
     return {
       role: msg.role,
-      content: typeof msg.content === 'string' ? msg.content : msg.content.map(part => {
-        if (part.type === 'text') return { type: 'text', text: part.text }
-        if (part.type === 'image') return { type: 'image_url', image_url: { url: part.url } }
-        return part
-      }),
+      content: typeof msg.content === 'string' ? msg.content : msg.content.map(toOpenAIContentPart),
     }
   })
+}
+
+function toOpenAIContentPart(part: ContentPart): unknown {
+  if (part.type === 'text') return { type: 'text', text: part.text }
+
+  const file = resolveFilePart(part)
+
+  if (file.mediaType.startsWith('image/')) {
+    return { type: 'image_url', image_url: { url: file.url } }
+  }
+
+  if (!file.base64) {
+    throw new Error(`[vue-llm] OpenAI requires ${file.mediaType} attachments as data URLs, got a remote URL`)
+  }
+
+  if (file.mediaType === 'application/pdf') {
+    return {
+      type: 'file',
+      file: { filename: file.filename ?? 'document.pdf', file_data: file.url },
+    }
+  }
+
+  const audioFormat = OPENAI_AUDIO_FORMATS[file.mediaType]
+  if (audioFormat) {
+    return { type: 'input_audio', input_audio: { data: file.base64, format: audioFormat } }
+  }
+
+  if (isTextMediaType(file.mediaType)) {
+    return { type: 'text', text: decodeBase64Text(file.base64) }
+  }
+
+  throw new Error(`[vue-llm] OpenAI does not support ${file.mediaType} attachments`)
+}
+
+const OPENAI_AUDIO_FORMATS: Record<string, string> = {
+  'audio/wav': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3',
 }
 
 interface OpenAIChatChunk {

@@ -1,4 +1,5 @@
 import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types'
+import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file'
 
 export interface OllamaConfig {
   baseURL?: string
@@ -112,10 +113,39 @@ export function createOllama(config?: OllamaConfig): LLMProvider {
 }
 
 function toOllamaMessages(messages: ChatMessage[]): unknown[] {
-  return messages.map(msg => ({
-    role: msg.role,
-    content: typeof msg.content === 'string' ? msg.content : msg.content.map(p => p.type === 'text' ? p.text : '').join(''),
-  }))
+  return messages.map(msg => {
+    if (typeof msg.content === 'string') {
+      return { role: msg.role, content: msg.content }
+    }
+
+    const texts: string[] = []
+    const images: string[] = []
+
+    for (const part of msg.content) {
+      if (part.type === 'text') {
+        texts.push(part.text)
+        continue
+      }
+
+      const file = resolveFilePart(part)
+      if (!file.base64) {
+        throw new Error('[vue-llm] Ollama requires attachments as data URLs, got a remote URL')
+      }
+      if (file.mediaType.startsWith('image/')) {
+        images.push(file.base64)
+      } else if (isTextMediaType(file.mediaType)) {
+        texts.push(decodeBase64Text(file.base64))
+      } else {
+        throw new Error(`[vue-llm] Ollama does not support ${file.mediaType} attachments`)
+      }
+    }
+
+    return {
+      role: msg.role,
+      content: texts.join('\n\n'),
+      ...(images.length > 0 ? { images } : {}),
+    }
+  })
 }
 
 interface OllamaChatChunk {
