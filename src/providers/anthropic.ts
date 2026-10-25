@@ -60,6 +60,7 @@ export function createAnthropic(config: AnthropicConfig): LLMProvider {
           'x-api-key': config.apiKey,
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
+          ...(request.providerOptions?.headers as Record<string, string> | undefined),
         },
         body: JSON.stringify(body),
         signal: request.signal,

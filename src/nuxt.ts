@@ -22,6 +22,7 @@ export default defineNuxtModule({
     addImports([
       { name: 'createOpenAI', from: resolver.resolve('./providers') },
       { name: 'createAnthropic', from: resolver.resolve('./providers') },
+      { name: 'createGoogle', from: resolver.resolve('./providers') },
       { name: 'createOllama', from: resolver.resolve('./providers') },
     ])
 

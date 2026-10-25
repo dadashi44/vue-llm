@@ -37,6 +37,10 @@ export function createOpenAI(config: OpenAIConfig): LLMProvider {
         stream_options: { include_usage: true },
       }
 
+      if (request.providerOptions?.response_format) {
+        body.response_format = request.providerOptions.response_format
+      }
+
       if (request.tools?.length) {
         body.tools = request.tools.map(t => ({
           type: 'function',
@@ -53,6 +57,7 @@ export function createOpenAI(config: OpenAIConfig): LLMProvider {
         headers: {
           'Authorization': `Bearer ${config.apiKey}`,
           'Content-Type': 'application/json',
+          ...(request.providerOptions?.headers as Record<string, string> | undefined),
         },
         body: JSON.stringify(body),
         signal: request.signal,

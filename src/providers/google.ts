@@ -59,7 +59,10 @@ export function createGoogle(config: GoogleConfig): LLMProvider {
 
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(request.providerOptions?.headers as Record<string, string> | undefined),
+        },
         body: JSON.stringify(body),
         signal: request.signal,
       })
