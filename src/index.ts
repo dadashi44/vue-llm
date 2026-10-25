@@ -7,8 +7,17 @@ export type { UseCompletionOptions, UseCompletionReturn } from './composables/us
 export { useObject } from './composables/use-object'
 export type { UseObjectOptions, UseObjectReturn } from './composables/use-object'
 
-export { wrapProvider, loggingMiddleware, retryMiddleware, headerMiddleware } from './middleware'
-export type { Middleware } from './middleware'
+export {
+  wrapProvider,
+  loggingMiddleware,
+  retryMiddleware,
+  rateLimitMiddleware,
+  headerMiddleware,
+  isRetryableError,
+} from './middleware'
+export type { Middleware, ChatHandler, RetryOptions, RateLimitOptions } from './middleware'
+
+export { LLMAPIError } from './core/errors'
 
 export { fileToDataURL, convertFilesToParts } from './utils/file'
 export type { FileInput } from './utils/file'

@@ -1,5 +1,6 @@
 import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types'
 import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file'
+import { createAPIError } from '../core/errors'
 
 export interface OllamaConfig {
   baseURL?: string
@@ -40,8 +41,7 @@ export function createOllama(config?: OllamaConfig): LLMProvider {
       })
 
       if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`[vue-llm] Ollama API error ${response.status}: ${text}`)
+        throw await createAPIError('ollama', 'Ollama API', response)
       }
 
       if (!response.body) {

@@ -1,6 +1,7 @@
 import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, ContentPart, LLMProvider } from './types'
 import { SSEParserStream } from '../core/sse-parser'
 import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file'
+import { createAPIError } from '../core/errors'
 
 export interface OpenAIConfig {
   apiKey: string
@@ -58,8 +59,7 @@ export function createOpenAI(config: OpenAIConfig): LLMProvider {
       })
 
       if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`[vue-llm] OpenAI API error ${response.status}: ${text}`)
+        throw await createAPIError('openai', 'OpenAI API', response)
       }
 
       if (!response.body) {

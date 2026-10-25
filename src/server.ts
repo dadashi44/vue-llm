@@ -1,5 +1,6 @@
 import type { LLMProvider, ChatMessage, ChatStreamChunk } from './providers/types'
 import type { ToolDefinition } from './types'
+import { createAPIError } from './core/errors'
 
 export interface LLMHandlerOptions {
   provider: LLMProvider
@@ -7,7 +8,14 @@ export interface LLMHandlerOptions {
   system?: string
   tools?: ToolDefinition[]
   maxMessages?: number
+  rateLimit?: ServerRateLimitOptions
   onRequest?: (body: LLMRequestBody) => LLMRequestBody | Promise<LLMRequestBody>
+}
+
+export interface ServerRateLimitOptions {
+  maxRequests: number
+  interval?: number
+  key?: (request: Request) => string
 }
 
 export interface LLMRequestBody {
@@ -17,12 +25,27 @@ export interface LLMRequestBody {
 }
 
 export function createLLMHandler(options: LLMHandlerOptions) {
+  const limiter = options.rateLimit ? createWindowLimiter(options.rateLimit) : undefined
+
   return async (request: Request): Promise<Response> => {
     if (request.method !== 'POST') {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         status: 405,
         headers: { 'Content-Type': 'application/json' },
       })
+    }
+
+    if (limiter) {
+      const retryAfter = limiter(request)
+      if (retryAfter !== undefined) {
+        return new Response(JSON.stringify({ error: 'Too many requests' }), {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': String(Math.ceil(retryAfter / 1000)),
+          },
+        })
+      }
     }
 
     let body: LLMRequestBody
@@ -87,6 +110,43 @@ export function createLLMHandler(options: LLMHandlerOptions) {
   }
 }
 
+function createWindowLimiter(options: ServerRateLimitOptions): (request: Request) => number | undefined {
+  const interval = options.interval ?? 60_000
+  const getKey = options.key ?? defaultRateLimitKey
+  const windows = new Map<string, { start: number; count: number }>()
+
+  return (request) => {
+    const now = Date.now()
+    const key = getKey(request)
+
+    if (windows.size > 10_000) {
+      for (const [k, w] of windows) {
+        if (now - w.start >= interval) windows.delete(k)
+      }
+    }
+
+    let window = windows.get(key)
+    if (!window || now - window.start >= interval) {
+      window = { start: now, count: 0 }
+      windows.set(key, window)
+    }
+
+    if (window.count >= options.maxRequests) {
+      return window.start + interval - now
+    }
+
+    window.count++
+    return undefined
+  }
+}
+
+function defaultRateLimitKey(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for')
+  return forwarded?.split(',')[0].trim()
+    || request.headers.get('x-real-ip')
+    || 'global'
+}
+
 export function streamToSSE(stream: ReadableStream<ChatStreamChunk>): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder()
 
@@ -129,8 +189,7 @@ export function createProxyProvider(baseURL: string): LLMProvider {
       })
 
       if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`[vue-llm] Proxy error ${response.status}: ${text}`)
+        throw await createAPIError('proxy', 'Proxy', response)
       }
 
       if (!response.body) {

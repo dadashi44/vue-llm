@@ -1,5 +1,6 @@
 import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types'
 import { resolveFilePart } from '../utils/file'
+import { createAPIError } from '../core/errors'
 
 export interface GoogleConfig {
   apiKey: string
@@ -64,8 +65,7 @@ export function createGoogle(config: GoogleConfig): LLMProvider {
       })
 
       if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`[vue-llm] Google AI API error ${response.status}: ${text}`)
+        throw await createAPIError('google', 'Google AI API', response)
       }
 
       if (!response.body) {
