@@ -1,6 +1,7 @@
 import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, ContentPart, LLMProvider } from './types'
 import { SSEParserStream } from '../core/sse-parser'
 import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file'
+import { createAPIError } from '../core/errors'
 
 export interface AnthropicConfig {
   apiKey: string
@@ -59,14 +60,14 @@ export function createAnthropic(config: AnthropicConfig): LLMProvider {
           'x-api-key': config.apiKey,
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
+          ...(request.providerOptions?.headers as Record<string, string> | undefined),
         },
         body: JSON.stringify(body),
         signal: request.signal,
       })
 
       if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`[vue-llm] Anthropic API error ${response.status}: ${text}`)
+        throw await createAPIError('anthropic', 'Anthropic API', response)
       }
 
       if (!response.body) {

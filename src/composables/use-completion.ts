@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, ref, type Ref } from 'vue'
+import { computed, type MaybeRefOrGetter, onScopeDispose, ref, type Ref, toValue } from 'vue'
 import type { ChatStatus, FinishReason, Usage } from '../types'
 import type { LLMProvider } from '../providers/types'
 import { generateId } from '../utils/generate-id'
@@ -7,7 +7,7 @@ export interface UseCompletionOptions {
   id?: string
   provider: LLMProvider
   model: string
-  system?: string
+  system?: MaybeRefOrGetter<string | undefined>
   onFinish?: (completion: string, context: { finishReason: FinishReason; usage?: Usage }) => void
   onError?: (error: Error) => void
 }
@@ -50,9 +50,10 @@ export function useCompletion(options: UseCompletionOptions): UseCompletionRetur
     try {
       options.provider.validateConfig()
 
-      const messages = options.system
+      const system = toValue(options.system)
+      const messages = system
         ? [
-            { role: 'system' as const, content: options.system },
+            { role: 'system' as const, content: system },
             { role: 'user' as const, content: text },
           ]
         : [{ role: 'user' as const, content: text }]

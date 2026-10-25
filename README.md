@@ -4,6 +4,8 @@ AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
 
 `useChat()` with streaming, tool calling, multi-provider support — in 10 lines of code.
 
+**Documentation:** https://dadashi44.github.io/vue-llm/
+
 ## Features
 
 - **`useChat()`** — reactive composable with streaming, abort, regenerate
@@ -11,6 +13,8 @@ AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
 - **Tool calling** — automatic roundtrips with `onToolCall` handler
 - **Attachments** — images, PDFs, audio and text files, mapped per provider
 - **Persistence** — restore chat history from localStorage or any custom backend
+- **Resilience** — retries with exponential backoff, client and server rate limiting
+- **Prompt templates** — `{{variables}}` with type inference, chat templates, reactive `usePrompt`
 - **Streaming** — SSE parser, text/reasoning/tool-call deltas
 - **Security** — `dangerouslyAllowBrowser` guard protects API keys
 - **Nuxt module** — auto-imports, server-side runtime config
@@ -63,7 +67,6 @@ import { createOpenAI } from 'vue-llm/providers'
 
 const ai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  model: 'gpt-4o', // default model
 })
 ```
 
@@ -185,6 +188,42 @@ const storage: ChatStorage = {
 
 With async storage, `isRestored` is `false` until `load` resolves. Messages sent before that are kept — stored history won't overwrite them. Storage errors go to `onError`. Attachments are stored as data URLs, so large files can exceed the ~5 MB localStorage quota.
 
+## Retries & Rate Limiting
+
+```ts
+import { wrapProvider, retryMiddleware, rateLimitMiddleware } from 'vue-llm'
+
+const ai = wrapProvider(createOpenAI({ apiKey }), [
+  retryMiddleware({ maxRetries: 3, initialDelay: 1000, maxDelay: 30_000 }),
+  rateLimitMiddleware({ maxRequests: 20, interval: 60_000, maxConcurrent: 2 }),
+])
+```
+
+`retryMiddleware` re-sends the request on 408, 409, 429, 5xx and network errors with exponential backoff (`initialDelay * factor^n`, jittered), honoring `Retry-After` / `retry-after-ms`. Pass `shouldRetry(error, attempt)` to customize and `onRetry` to observe. Only the initial request is retried — errors after the stream has started are not.
+
+`rateLimitMiddleware` queues requests client-side: at most `maxRequests` per `interval` and `maxConcurrent` open streams (a slot is freed when the stream ends or is cancelled). Aborting a queued request rejects it immediately.
+
+Providers throw `LLMAPIError` with `status`, `provider`, `body`, `retryAfter` and `isRetryable`:
+
+```ts
+import { LLMAPIError } from 'vue-llm'
+
+onError(error) {
+  if (error instanceof LLMAPIError && error.status === 429) showToast('Slow down')
+}
+```
+
+On the server, `createLLMHandler` can limit requests per client (keyed by `x-forwarded-for` / `x-real-ip` by default) and responds with `429` + `Retry-After`:
+
+```ts
+createLLMHandler({
+  provider,
+  rateLimit: { maxRequests: 10, interval: 60_000, key: req => req.headers.get('x-user-id') ?? 'anon' },
+})
+```
+
+The server limiter is in-memory per instance — for multi-instance deployments put a shared limiter (e.g. Redis-backed) in front of the handler.
+
 ## System Prompt
 
 ```ts
@@ -193,6 +232,45 @@ const { messages, sendMessage } = useChat({
   model: 'gpt-4o',
   system: 'You are a helpful assistant that speaks like a pirate.',
 })
+```
+
+`system` also accepts a ref or getter (in `useChat`, `useCompletion` and `useObject`) and is re-read on every request.
+
+## Prompt Templates
+
+Variable names are inferred from the template string, so missing or misspelled variables are type errors:
+
+```ts
+import { createPrompt, createChatPrompt, usePrompt } from 'vue-llm'
+
+const translate = createPrompt('Translate {{ text }} to {{lang}}.', { defaults: { lang: 'English' } })
+
+translate.render({ text: 'Hola' })          // 'Translate Hola to English.'
+translate.render({ txt: 'Hola' })           // ✗ type error
+translate.variables                         // ['text', 'lang']
+```
+
+Missing values throw at runtime too. Escape a placeholder with a backslash: `\{{literal}}`.
+
+Reactive prompts with `usePrompt`:
+
+```ts
+const lang = ref('French')
+const system = usePrompt('Always reply in {{lang}}.', () => ({ lang: lang.value }))
+
+const chat = useChat({ provider: ai, model: 'gpt-4o', system })
+```
+
+Multi-message templates:
+
+```ts
+const tutor = createChatPrompt([
+  { role: 'system', content: 'You are a {{level}} tutor.' },
+  { role: 'user', content: 'Explain {{topic}}.' },
+])
+
+tutor.render({ level: 'patient', topic: 'recursion' })      // ChatMessage[] for provider.chat()
+useChat({ provider: ai, model: 'gpt-4o', initialMessages: tutor.toUIMessages({ level: 'patient', topic: 'recursion' }) })
 ```
 
 ## API Reference

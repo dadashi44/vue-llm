@@ -120,3 +120,43 @@ describe('provider attachments', () => {
       .rejects.toThrow('data URLs')
   })
 })
+
+describe('providerOptions passthrough', () => {
+  const originalFetch = globalThis.fetch
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    ['openai', () => createOpenAI({ apiKey: 'k' })],
+    ['anthropic', () => createAnthropic({ apiKey: 'k' })],
+    ['google', () => createGoogle({ apiKey: 'k' })],
+    ['ollama', () => createOllama()],
+  ])('%s sends providerOptions.headers', async (_name, create) => {
+    vi.stubGlobal('window', undefined)
+    const fetchMock = vi.fn(async () => new Response('', { status: 200 }))
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    await create().chat({ model: 'm', messages: [{ role: 'user', content: 'hi' }], providerOptions: { headers: { 'x-team': 'a' } } })
+
+    const init = (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1]
+    expect((init.headers as Record<string, string>)['x-team']).toBe('a')
+  })
+
+  it('OpenAI forwards response_format', async () => {
+    vi.stubGlobal('window', undefined)
+    const fetchMock = vi.fn(async () => new Response('', { status: 200 }))
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    await createOpenAI({ apiKey: 'k' }).chat({
+      model: 'm',
+      messages: [{ role: 'user', content: 'hi' }],
+      providerOptions: { response_format: { type: 'json_object' } },
+    })
+
+    const init = (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1]
+    expect(JSON.parse(init.body as string).response_format).toEqual({ type: 'json_object' })
+  })
+})

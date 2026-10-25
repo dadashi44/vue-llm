@@ -1,4 +1,4 @@
-import { computed, type MaybeRef, onScopeDispose, ref, type Ref, toValue, watch } from 'vue'
+import { computed, type MaybeRef, type MaybeRefOrGetter, onScopeDispose, ref, type Ref, toValue, watch } from 'vue'
 import type { ChatStatus, FinishReason, ToolDefinition, UIMessage, UIMessagePart, Usage } from '../types'
 import type { ChatMessage, ContentPart, LLMProvider } from '../providers/types'
 import { StreamProcessor } from '../core/stream-processor'
@@ -12,7 +12,7 @@ export interface UseChatOptions {
   id?: string
   provider: LLMProvider
   model: string
-  system?: string
+  system?: MaybeRefOrGetter<string | undefined>
   initialMessages?: UIMessage[]
   body?: MaybeRef<Record<string, unknown>>
   providerOptions?: Record<string, unknown>
@@ -99,8 +99,14 @@ export function useChat(options: UseChatOptions): UseChatReturn {
   const buildChatMessages = (): ChatMessage[] => {
     const chatMessages: ChatMessage[] = []
 
-    if (options.system) {
-      chatMessages.push({ role: 'system', content: options.system })
+    const systemTexts = [
+      toValue(options.system),
+      ...messages.value
+        .filter(m => m.role === 'system')
+        .map(m => m.parts.filter(p => p.type === 'text').map(p => p.text).join('')),
+    ].filter(Boolean)
+    if (systemTexts.length > 0) {
+      chatMessages.push({ role: 'system', content: systemTexts.join('\n\n') })
     }
 
     for (const msg of messages.value) {
