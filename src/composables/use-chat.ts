@@ -1,7 +1,8 @@
-import { computed, type MaybeRef, onScopeDispose, ref, type Ref, toValue } from 'vue'
+import { computed, type MaybeRef, onScopeDispose, ref, type Ref, toValue, watch } from 'vue'
 import type { ChatStatus, FinishReason, ToolDefinition, UIMessage, UIMessagePart, Usage } from '../types'
 import type { ChatMessage, ContentPart, LLMProvider } from '../providers/types'
 import { StreamProcessor } from '../core/stream-processor'
+import type { ChatStorage } from '../core/storage'
 import { generateId } from '../utils/generate-id'
 import { convertFilesToParts, type FileInput } from '../utils/file'
 
@@ -20,6 +21,7 @@ export interface UseChatOptions {
   onFinish?: (message: UIMessage, context: { finishReason: FinishReason; usage?: Usage }) => void
   onError?: (error: Error) => void
   maxToolRoundtrips?: number
+  storage?: ChatStorage
 }
 
 export interface UseChatReturn {
@@ -36,6 +38,7 @@ export interface UseChatReturn {
   isLoading: Ref<boolean>
   addToolResult: (options: { toolCallId: string; result: unknown }) => void
   clearError: () => void
+  isRestored: Ref<boolean>
 }
 
 export function useChat(options: UseChatOptions): UseChatReturn {
@@ -46,6 +49,50 @@ export function useChat(options: UseChatOptions): UseChatReturn {
   const input = ref('')
 
   let abortController: AbortController | null = null
+
+  const isRestored = ref(!options.storage)
+  const storage = options.storage
+
+  const reportError = (err: unknown): void => {
+    options.onError?.(err instanceof Error ? err : new Error(String(err)))
+  }
+
+  if (storage) {
+    const initialMessages = messages.value
+    const applyStored = (stored: UIMessage[] | null | undefined): void => {
+      if (stored?.length && messages.value === initialMessages) {
+        messages.value = stored
+      }
+      isRestored.value = true
+    }
+
+    try {
+      const loaded = storage.load(id)
+      if (loaded instanceof Promise) {
+        loaded.then(applyStored, (err: unknown) => {
+          reportError(err)
+          isRestored.value = true
+        })
+      } else {
+        applyStored(loaded)
+      }
+    } catch (err) {
+      reportError(err)
+      isRestored.value = true
+    }
+
+    watch([messages, status, isRestored], () => {
+      if (!isRestored.value || status.value === 'submitted' || status.value === 'streaming') return
+      try {
+        const result = messages.value.length > 0
+          ? storage.save(id, messages.value)
+          : storage.remove(id)
+        if (result instanceof Promise) result.catch(reportError)
+      } catch (err) {
+        reportError(err)
+      }
+    }, { deep: true })
+  }
 
   const processor = new StreamProcessor(messages, status as Ref<ChatStatus>, generateId)
 
@@ -266,5 +313,6 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     isLoading,
     addToolResult,
     clearError,
+    isRestored: computed(() => isRestored.value),
   }
 }

@@ -13,6 +13,9 @@ export type { Middleware } from './middleware'
 export { fileToDataURL, convertFilesToParts } from './utils/file'
 export type { FileInput } from './utils/file'
 
+export { createWebStorage, createMemoryStorage } from './core/storage'
+export type { ChatStorage, WebStorageOptions } from './core/storage'
+
 export type {
   UIMessage,
   UIMessagePart,
