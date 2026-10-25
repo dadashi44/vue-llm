@@ -11,6 +11,7 @@ AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
 - **Tool calling** — automatic roundtrips with `onToolCall` handler
 - **Attachments** — images, PDFs, audio and text files, mapped per provider
 - **Persistence** — restore chat history from localStorage or any custom backend
+- **Resilience** — retries with exponential backoff, client and server rate limiting
 - **Streaming** — SSE parser, text/reasoning/tool-call deltas
 - **Security** — `dangerouslyAllowBrowser` guard protects API keys
 - **Nuxt module** — auto-imports, server-side runtime config
@@ -184,6 +185,42 @@ const storage: ChatStorage = {
 ```
 
 With async storage, `isRestored` is `false` until `load` resolves. Messages sent before that are kept — stored history won't overwrite them. Storage errors go to `onError`. Attachments are stored as data URLs, so large files can exceed the ~5 MB localStorage quota.
+
+## Retries & Rate Limiting
+
+```ts
+import { wrapProvider, retryMiddleware, rateLimitMiddleware } from 'vue-llm'
+
+const ai = wrapProvider(createOpenAI({ apiKey }), [
+  retryMiddleware({ maxRetries: 3, initialDelay: 1000, maxDelay: 30_000 }),
+  rateLimitMiddleware({ maxRequests: 20, interval: 60_000, maxConcurrent: 2 }),
+])
+```
+
+`retryMiddleware` re-sends the request on 408, 409, 429, 5xx and network errors with exponential backoff (`initialDelay * factor^n`, jittered), honoring `Retry-After` / `retry-after-ms`. Pass `shouldRetry(error, attempt)` to customize and `onRetry` to observe. Only the initial request is retried — errors after the stream has started are not.
+
+`rateLimitMiddleware` queues requests client-side: at most `maxRequests` per `interval` and `maxConcurrent` open streams (a slot is freed when the stream ends or is cancelled). Aborting a queued request rejects it immediately.
+
+Providers throw `LLMAPIError` with `status`, `provider`, `body`, `retryAfter` and `isRetryable`:
+
+```ts
+import { LLMAPIError } from 'vue-llm'
+
+onError(error) {
+  if (error instanceof LLMAPIError && error.status === 429) showToast('Slow down')
+}
+```
+
+On the server, `createLLMHandler` can limit requests per client (keyed by `x-forwarded-for` / `x-real-ip` by default) and responds with `429` + `Retry-After`:
+
+```ts
+createLLMHandler({
+  provider,
+  rateLimit: { maxRequests: 10, interval: 60_000, key: req => req.headers.get('x-user-id') ?? 'anon' },
+})
+```
+
+The server limiter is in-memory per instance — for multi-instance deployments put a shared limiter (e.g. Redis-backed) in front of the handler.
 
 ## System Prompt
 
