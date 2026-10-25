@@ -12,6 +12,7 @@ AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
 - **Attachments** — images, PDFs, audio and text files, mapped per provider
 - **Persistence** — restore chat history from localStorage or any custom backend
 - **Resilience** — retries with exponential backoff, client and server rate limiting
+- **Prompt templates** — `{{variables}}` with type inference, chat templates, reactive `usePrompt`
 - **Streaming** — SSE parser, text/reasoning/tool-call deltas
 - **Security** — `dangerouslyAllowBrowser` guard protects API keys
 - **Nuxt module** — auto-imports, server-side runtime config
@@ -230,6 +231,45 @@ const { messages, sendMessage } = useChat({
   model: 'gpt-4o',
   system: 'You are a helpful assistant that speaks like a pirate.',
 })
+```
+
+`system` also accepts a ref or getter (in `useChat`, `useCompletion` and `useObject`) and is re-read on every request.
+
+## Prompt Templates
+
+Variable names are inferred from the template string, so missing or misspelled variables are type errors:
+
+```ts
+import { createPrompt, createChatPrompt, usePrompt } from 'vue-llm'
+
+const translate = createPrompt('Translate {{ text }} to {{lang}}.', { defaults: { lang: 'English' } })
+
+translate.render({ text: 'Hola' })          // 'Translate Hola to English.'
+translate.render({ txt: 'Hola' })           // ✗ type error
+translate.variables                         // ['text', 'lang']
+```
+
+Missing values throw at runtime too. Escape a placeholder with a backslash: `\{{literal}}`.
+
+Reactive prompts with `usePrompt`:
+
+```ts
+const lang = ref('French')
+const system = usePrompt('Always reply in {{lang}}.', () => ({ lang: lang.value }))
+
+const chat = useChat({ provider: ai, model: 'gpt-4o', system })
+```
+
+Multi-message templates:
+
+```ts
+const tutor = createChatPrompt([
+  { role: 'system', content: 'You are a {{level}} tutor.' },
+  { role: 'user', content: 'Explain {{topic}}.' },
+])
+
+tutor.render({ level: 'patient', topic: 'recursion' })      // ChatMessage[] for provider.chat()
+useChat({ provider: ai, model: 'gpt-4o', initialMessages: tutor.toUIMessages({ level: 'patient', topic: 'recursion' }) })
 ```
 
 ## API Reference
