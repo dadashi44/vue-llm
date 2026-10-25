@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, ref, type Ref } from 'vue'
+import { computed, type MaybeRefOrGetter, onScopeDispose, ref, type Ref, toValue } from 'vue'
 import type { ChatStatus, FinishReason, Usage } from '../types'
 import type { LLMProvider } from '../providers/types'
 import { generateId } from '../utils/generate-id'
@@ -7,7 +7,7 @@ export interface UseObjectOptions<T> {
   id?: string
   provider: LLMProvider
   model: string
-  system?: string
+  system?: MaybeRefOrGetter<string | undefined>
   schema: Record<string, unknown>
   onFinish?: (object: T, context: { finishReason: FinishReason; usage?: Usage }) => void
   onError?: (error: Error) => void
@@ -54,7 +54,7 @@ export function useObject<T = unknown>(options: UseObjectOptions<T>): UseObjectR
       options.provider.validateConfig()
 
       const systemPrompt = [
-        options.system ?? '',
+        toValue(options.system) ?? '',
         'Respond with valid JSON matching this schema:',
         JSON.stringify(options.schema, null, 2),
         'Output ONLY the JSON object, no other text.',

@@ -7,6 +7,19 @@ export type { UseCompletionOptions, UseCompletionReturn } from './composables/us
 export { useObject } from './composables/use-object'
 export type { UseObjectOptions, UseObjectReturn } from './composables/use-object'
 
+export { usePrompt } from './composables/use-prompt'
+export { createPrompt, createChatPrompt, renderTemplate } from './core/prompt'
+export type {
+  PromptTemplate,
+  ChatPromptTemplate,
+  ChatPromptMessage,
+  PromptOptions,
+  PromptInput,
+  PromptValue,
+  PromptVariables,
+  PromptVariableNames,
+} from './core/prompt'
+
 export {
   wrapProvider,
   loggingMiddleware,
