@@ -4,6 +4,8 @@ AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
 
 `useChat()` with streaming, tool calling, multi-provider support — in 10 lines of code.
 
+**Documentation:** https://dadashi44.github.io/vue-llm/
+
 ## Features
 
 - **`useChat()`** — reactive composable with streaming, abort, regenerate
@@ -65,7 +67,6 @@ import { createOpenAI } from 'vue-llm/providers'
 
 const ai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  model: 'gpt-4o', // default model
 })
 ```
 
