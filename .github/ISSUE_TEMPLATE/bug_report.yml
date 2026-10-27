@@ -1,0 +1,44 @@
+name: Bug report
+description: Something doesn't work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: A minimal snippet or a link to a repo / StackBlitz. Remove API keys.
+      render: vue
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: vue-llm version
+      placeholder: '1.3.0'
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      multiple: true
+      options: [OpenAI, Anthropic, Google Gemini, Ollama, WebLLM (in-browser), createSSEProvider / own backend, Not provider-related]
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Vue / Nuxt version, browser or Node version
+      placeholder: 'Vue 3.5, Nuxt 4.1, Chrome 141'
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Errors from the console or server, if any
+      render: shell
