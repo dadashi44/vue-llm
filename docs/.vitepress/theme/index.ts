@@ -13,7 +13,7 @@ import { initAnalytics, track, trackPageView } from './analytics'
 import './style.css'
 
 const LOCALES = ['ru', 'zh', 'pt', 'es', 'ja']
-const localeOf = (path: string): string => LOCALES.find(l => path.startsWith(`/${l}/`)) ?? 'en'
+const localeOf = (path: string): string => LOCALES.find(l => path.startsWith(`/vue-llm/${l}/`)) ?? 'en'
 
 /** Outbound links and code copies, tracked with one listener for the whole site */
 function trackClicks(event: MouseEvent): void {

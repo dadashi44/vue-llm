@@ -11,7 +11,7 @@
 
 `useChat()` со стримингом, вызовом инструментов и поддержкой нескольких провайдеров — в 10 строк кода.
 
-**Документация:** https://vue-llm.js.org/ru/ · **[Попробуйте в браузере](https://vue-llm.js.org/ru/playground)** — API-ключ не нужен
+**Документация:** https://dadashi44.github.io/vue-llm/ru/ · **[Попробуйте в браузере](https://dadashi44.github.io/vue-llm/ru/playground)** — API-ключ не нужен
 
 ## Возможности
 
@@ -27,7 +27,7 @@
 - **Любой бэкенд** — серверные инструменты в `createLLMHandler`, `createSSEProvider` для вашего собственного SSE API
 - **Стриминг** — SSE-парсер, дельты текста, рассуждений и вызовов инструментов
 - **Безопасность** — защита `dangerouslyAllowBrowser` бережёт API-ключи
-- **Chat UI** — готовый чат, код которого принадлежит вам: `npx shadcn-vue add https://vue-llm.js.org/r/chat.json`, плюс headless `usePromptInput` и `useAutoScroll`
+- **Chat UI** — готовый чат, код которого принадлежит вам: `npx shadcn-vue add https://dadashi44.github.io/vue-llm/r/chat.json`, плюс headless `usePromptInput` и `useAutoScroll`
 - **Vue DevTools** — вкладка LLM со всеми чатами, таймлайном запросов, временем до первого токена, вызовами инструментов и расходом токенов (`vue-llm/devtools`)
 - **Nuxt-модуль** — автоимпорты, компоненты, DevTools в режиме разработки, серверный runtime config
 - **Ноль runtime-зависимостей** — только `vue` в peer-зависимостях (Vue 3.3+, композаблы работают и на Vue 2.7)
@@ -127,7 +127,7 @@ const { messages, sendMessage } = useChat({
 })
 ```
 
-Модель работает на GPU пользователя, и ничего не покидает устройство. См. [Модели в браузере](https://vue-llm.js.org/ru/guide/in-browser).
+Модель работает на GPU пользователя, и ничего не покидает устройство. См. [Модели в браузере](https://dadashi44.github.io/vue-llm/ru/guide/in-browser).
 
 ## Вызов инструментов
 

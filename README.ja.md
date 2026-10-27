@@ -11,7 +11,7 @@
 
 ストリーミング、ツール呼び出し、マルチプロバイダー対応の `useChat()` を、わずか 10 行のコードで。
 
-**ドキュメント:** https://vue-llm.js.org/ja/ · **[ブラウザーで試す](https://vue-llm.js.org/ja/playground)** — API キーは不要です
+**ドキュメント:** https://dadashi44.github.io/vue-llm/ja/ · **[ブラウザーで試す](https://dadashi44.github.io/vue-llm/ja/playground)** — API キーは不要です
 
 ## 機能
 
@@ -27,7 +27,7 @@
 - **あらゆるバックエンドに対応** — `createLLMHandler` によるサーバーサイドのツール、独自の SSE API 向けの `createSSEProvider`
 - **ストリーミング** — SSE パーサー、テキスト・推論・ツール呼び出しの差分
 - **セキュリティ** — `dangerouslyAllowBrowser` ガードで API キーを保護
-- **チャット UI** — 自分で所有できる完全なチャット：`npx shadcn-vue add https://vue-llm.js.org/r/chat.json`。ヘッドレスな `usePromptInput` と `useAutoScroll` も利用可能
+- **チャット UI** — 自分で所有できる完全なチャット：`npx shadcn-vue add https://dadashi44.github.io/vue-llm/r/chat.json`。ヘッドレスな `usePromptInput` と `useAutoScroll` も利用可能
 - **Vue DevTools** — すべてのチャット、リクエストのタイムライン、最初のトークンまでの時間、ツール呼び出し、トークン使用量を表示する LLM タブ（`vue-llm/devtools`）
 - **Nuxt モジュール** — 自動インポート、コンポーネント、開発時の DevTools、サーバーサイドの runtime config
 - **ランタイム依存ゼロ** — peer dependency は `vue` のみ（Vue 3.3 以降。コンポーザブルは Vue 2.7 でも動作）
@@ -127,7 +127,7 @@ const { messages, sendMessage } = useChat({
 })
 ```
 
-モデルはユーザーの GPU 上で動作し、データがデバイスの外に出ることはありません。詳しくは [ブラウザ内モデル](https://vue-llm.js.org/ja/guide/in-browser) を参照してください。
+モデルはユーザーの GPU 上で動作し、データがデバイスの外に出ることはありません。詳しくは [ブラウザ内モデル](https://dadashi44.github.io/vue-llm/ja/guide/in-browser) を参照してください。
 
 ## ツール呼び出し
 

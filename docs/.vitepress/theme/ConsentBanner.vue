@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { consentRequired, getConsent, isProduction, setConsent, type Consent } from './analytics'
+import { consentRequired, getConsent, setConsent, type Consent } from './analytics'
 import { useStrings } from './strings'
 
 const strings = useStrings()
 const visible = ref(false)
 
 onMounted(() => {
-  visible.value = consentRequired && isProduction() && getConsent() === null
+  visible.value = consentRequired && location.hostname === 'dadashi44.github.io' && getConsent() === null
 })
 
 function choose(consent: Consent): void {

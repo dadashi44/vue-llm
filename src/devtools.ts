@@ -195,8 +195,8 @@ export const LLMDevtools: Plugin<[LLMDevtoolsOptions?]> = {
       id: 'vue-llm',
       label: 'vue-llm',
       packageName: 'vue-llm',
-      homepage: 'https://vue-llm.js.org/',
-      logo: 'https://vue-llm.js.org/logo.svg',
+      homepage: 'https://dadashi44.github.io/vue-llm/',
+      logo: 'https://dadashi44.github.io/vue-llm/logo.svg',
       app,
     }, (devtoolsApi) => {
       api = devtoolsApi

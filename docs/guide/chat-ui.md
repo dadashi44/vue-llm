@@ -25,7 +25,7 @@ The demo uses a scripted model. The components are the same ones the CLI install
 You need a [shadcn-vue](https://www.shadcn-vue.com/docs/installation) project, which means Tailwind CSS and `lib/utils.ts`.
 
 ```bash
-npx shadcn-vue@latest add https://vue-llm.js.org/r/chat.json
+npx shadcn-vue@latest add https://dadashi44.github.io/vue-llm/r/chat.json
 ```
 
 The CLI installs `vue-llm` and your icon library (Lucide by default; other icon libraries are mapped by the CLI) and writes the components to `components/ui/chat/`.

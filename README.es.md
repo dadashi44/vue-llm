@@ -11,7 +11,7 @@
 
 `useChat()` con streaming, llamadas a herramientas y varios proveedores, en 10 líneas de código.
 
-**Documentación:** https://vue-llm.js.org/es/ · **[Pruébalo en el navegador](https://vue-llm.js.org/es/playground)**, sin API key
+**Documentación:** https://dadashi44.github.io/vue-llm/es/ · **[Pruébalo en el navegador](https://dadashi44.github.io/vue-llm/es/playground)**, sin API key
 
 ## Funciones
 
@@ -27,7 +27,7 @@
 - **Cualquier backend**: herramientas de servidor en `createLLMHandler` y `createSSEProvider` para tu propia API SSE
 - **Streaming**: parser de SSE y deltas de texto, razonamiento y llamadas a herramientas
 - **Seguridad**: la protección `dangerouslyAllowBrowser` mantiene a salvo las API keys
-- **Chat UI**: un chat completo que es tuyo: `npx shadcn-vue add https://vue-llm.js.org/r/chat.json`, además de los headless `usePromptInput` y `useAutoScroll`
+- **Chat UI**: un chat completo que es tuyo: `npx shadcn-vue add https://dadashi44.github.io/vue-llm/r/chat.json`, además de los headless `usePromptInput` y `useAutoScroll`
 - **Vue DevTools**: una pestaña LLM con cada chat, línea de tiempo de peticiones, tiempo hasta el primer token, llamadas a herramientas y consumo de tokens (`vue-llm/devtools`)
 - **Módulo de Nuxt**: auto-imports, componentes, DevTools en desarrollo y runtime config en el servidor
 - **Cero dependencias en tiempo de ejecución**: solo `vue` como peer dependency (Vue 3.3+; los composables también en Vue 2.7)
@@ -127,7 +127,7 @@ const { messages, sendMessage } = useChat({
 })
 ```
 
-El modelo se ejecuta en la GPU del usuario y nada sale del dispositivo. Consulta [Modelos en el navegador](https://vue-llm.js.org/es/guide/in-browser).
+El modelo se ejecuta en la GPU del usuario y nada sale del dispositivo. Consulta [Modelos en el navegador](https://dadashi44.github.io/vue-llm/es/guide/in-browser).
 
 ## Llamadas a herramientas
 

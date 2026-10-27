@@ -11,7 +11,7 @@
 
 带流式输出、工具调用和多提供方支持的 `useChat()`，只需 10 行代码。
 
-**文档：** https://vue-llm.js.org/zh/ · **[在浏览器中体验](https://vue-llm.js.org/zh/playground)**，无需 API key
+**文档：** https://dadashi44.github.io/vue-llm/zh/ · **[在浏览器中体验](https://dadashi44.github.io/vue-llm/zh/playground)**，无需 API key
 
 ## 特性
 
@@ -27,7 +27,7 @@
 - **任意后端**：`createLLMHandler` 中的服务端工具，以及用于接入你自己 SSE API 的 `createSSEProvider`
 - **流式处理**：SSE 解析器，文本/推理/工具调用增量
 - **安全**：`dangerouslyAllowBrowser` 保护机制，防止 API key 泄露
-- **聊天界面**：一套完全属于你的聊天界面：`npx shadcn-vue add https://vue-llm.js.org/r/chat.json`，另有无头的 `usePromptInput` 和 `useAutoScroll`
+- **聊天界面**：一套完全属于你的聊天界面：`npx shadcn-vue add https://dadashi44.github.io/vue-llm/r/chat.json`，另有无头的 `usePromptInput` 和 `useAutoScroll`
 - **Vue DevTools**：LLM 标签页，展示所有聊天、请求时间线、首 token 时间、工具调用和 token 用量（`vue-llm/devtools`）
 - **Nuxt 模块**：自动导入、组件、开发环境下的 DevTools、服务端运行时配置
 - **零运行时依赖**：唯一的 peer 依赖是 `vue`（Vue 3.3+，组合式函数也支持 Vue 2.7）
@@ -127,7 +127,7 @@ const { messages, sendMessage } = useChat({
 })
 ```
 
-模型运行在用户的 GPU 上，数据不会离开设备。参阅 [浏览器内模型](https://vue-llm.js.org/zh/guide/in-browser)。
+模型运行在用户的 GPU 上，数据不会离开设备。参阅 [浏览器内模型](https://dadashi44.github.io/vue-llm/zh/guide/in-browser)。
 
 ## 工具调用
 

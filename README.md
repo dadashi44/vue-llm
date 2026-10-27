@@ -11,7 +11,7 @@
 
 `useChat()` with streaming, tool calling, multi-provider support — in 10 lines of code.
 
-**Documentation:** https://vue-llm.js.org/ · **[Try it in your browser](https://vue-llm.js.org/playground)** — no API key needed
+**Documentation:** https://dadashi44.github.io/vue-llm/ · **[Try it in your browser](https://dadashi44.github.io/vue-llm/playground)** — no API key needed
 
 ## Features
 
@@ -27,7 +27,7 @@
 - **Any backend** — server-side tools in `createLLMHandler`, `createSSEProvider` for your own SSE API
 - **Streaming** — SSE parser, text/reasoning/tool-call deltas
 - **Security** — `dangerouslyAllowBrowser` guard protects API keys
-- **Chat UI** — a complete chat you own: `npx shadcn-vue add https://vue-llm.js.org/r/chat.json`, plus headless `usePromptInput` and `useAutoScroll`
+- **Chat UI** — a complete chat you own: `npx shadcn-vue add https://dadashi44.github.io/vue-llm/r/chat.json`, plus headless `usePromptInput` and `useAutoScroll`
 - **Vue DevTools** — an LLM tab with every chat, request timeline, time to first token, tool calls and token usage (`vue-llm/devtools`)
 - **Nuxt module** — auto-imports, components, DevTools in development, server-side runtime config
 - **Zero runtime deps** — only `vue` as peer dependency (Vue 3.3+, composables also on Vue 2.7)
@@ -127,7 +127,7 @@ const { messages, sendMessage } = useChat({
 })
 ```
 
-The model runs on the user's GPU, and nothing leaves the device. See [In-Browser Models](https://vue-llm.js.org/guide/in-browser).
+The model runs on the user's GPU, and nothing leaves the device. See [In-Browser Models](https://dadashi44.github.io/vue-llm/guide/in-browser).
 
 ## Tool Calling
 

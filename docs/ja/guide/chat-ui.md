@@ -25,7 +25,7 @@ description: 'Vue 用の既製の AI チャット UI：コマンド 1 つで sha
 [shadcn-vue](https://www.shadcn-vue.com/docs/installation) のプロジェクト、つまり Tailwind CSS と `lib/utils.ts` が必要です。
 
 ```bash
-npx shadcn-vue@latest add https://vue-llm.js.org/r/chat.json
+npx shadcn-vue@latest add https://dadashi44.github.io/vue-llm/r/chat.json
 ```
 
 CLI は `vue-llm` とアイコンライブラリ（デフォルトは Lucide。他のアイコンライブラリは CLI が対応付けます）をインストールし、コンポーネントを `components/ui/chat/` に書き出します。

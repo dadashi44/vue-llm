@@ -8,8 +8,8 @@ import { LOCALES, LOCALE_KEYS, localePrefix, localesConfig, searchLocales, split
 const root = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url))
 
 // Public URL of the site. Change it here (and `base`) when moving to an org or a custom domain.
-const SITE_URL = 'https://vue-llm.js.org/'
-const BASE = '/'
+const SITE_URL = 'https://dadashi44.github.io/vue-llm/'
+const BASE = '/vue-llm/'
 const REPO_URL = 'https://github.com/dadashi44/vue-llm'
 const TITLE = 'vue-llm'
 const DESCRIPTION = LOCALES.root.description
