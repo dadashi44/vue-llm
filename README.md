@@ -1,5 +1,7 @@
 # vue-llm
 
+**English** · [Русский](./README.ru.md) · [简体中文](./README.zh-CN.md) · [Português](./README.pt-BR.md) · [Español](./README.es.md) · [日本語](./README.ja.md)
+
 [![npm version](https://img.shields.io/npm/v/vue-llm.svg)](https://www.npmjs.com/package/vue-llm)
 [![npm downloads](https://img.shields.io/npm/dm/vue-llm.svg)](https://www.npmjs.com/package/vue-llm)
 [![CI](https://github.com/dadashi44/vue-llm/actions/workflows/ci.yml/badge.svg)](https://github.com/dadashi44/vue-llm/actions/workflows/ci.yml)

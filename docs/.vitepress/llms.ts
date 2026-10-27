@@ -65,9 +65,12 @@ export async function writeLLMsFiles(srcDir: string, outDir: string, site: SiteI
   await writeFile(join(outDir, 'llms-full.txt'), full)
 }
 
+// llms.txt is the English source of truth; translations would only duplicate it
+const isTranslation = (file: string): boolean => /^(ru|zh|pt|es|ja)\//.test(file.replace(/\\/g, '/'))
+
 async function loadPages(srcDir: string, siteUrl: string): Promise<Page[]> {
   const files = (await readdir(srcDir, { recursive: true }))
-    .filter(f => f.endsWith('.md') && !f.includes('node_modules') && f !== 'index.md')
+    .filter(f => f.endsWith('.md') && !f.includes('node_modules') && f !== 'index.md' && !isTranslation(f))
 
   const pages = await Promise.all(files.map(async (file) => {
     const raw = await readFile(join(srcDir, file), 'utf8')
