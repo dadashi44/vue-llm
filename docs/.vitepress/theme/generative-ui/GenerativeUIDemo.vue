@@ -65,7 +65,9 @@ watch(messages, async () => {
       />
     </div>
 
-    <p v-if="error" class="error">{{ error.message }}</p>
+    <p v-if="error" class="error">
+      {{ error.message }}
+    </p>
 
     <div class="suggestions">
       <button v-for="s in suggestions" :key="s" :disabled="busy" @click="send(s)">

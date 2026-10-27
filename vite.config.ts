@@ -12,11 +12,12 @@ export default defineConfig({
         components: resolve(__dirname, 'src/components.ts'),
         nuxt: resolve(__dirname, 'src/nuxt.ts'),
         server: resolve(__dirname, 'src/server.ts'),
+        devtools: resolve(__dirname, 'src/devtools.ts'),
       },
       formats: ['es', 'cjs'],
     },
     rollupOptions: {
-      external: ['vue', '@nuxt/kit'],
+      external: ['vue', '@nuxt/kit', '@vue/devtools-api'],
       output: {
         globals: { vue: 'Vue' },
       },

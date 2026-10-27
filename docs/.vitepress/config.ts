@@ -106,6 +106,7 @@ export default defineConfig({
           { text: 'Server & Proxy', link: '/guide/server' },
           { text: 'Custom Backends', link: '/guide/custom-backends' },
           { text: 'Nuxt', link: '/guide/nuxt' },
+          { text: 'DevTools', link: '/guide/devtools' },
           { text: 'Components', link: '/guide/components' },
         ],
       },

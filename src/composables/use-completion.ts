@@ -3,6 +3,7 @@ import { type MaybeRefOrGetter, toValue } from '../utils/vue'
 import type { ChatStatus, FinishReason, Usage } from '../types'
 import type { LLMProvider } from '../providers/types'
 import { generateId } from '../utils/generate-id'
+import { registerDevtoolsSession, tracedChat } from '../core/devtools'
 
 export interface UseCompletionOptions {
   id?: string
@@ -59,11 +60,11 @@ export function useCompletion(options: UseCompletionOptions): UseCompletionRetur
           ]
         : [{ role: 'user' as const, content: text }]
 
-      const { stream } = await options.provider.chat({
+      const { stream } = await tracedChat(options.provider, {
         model: toValue(options.model),
         messages,
         signal: abortController.signal,
-      })
+      }, id)
 
       status.value = 'streaming'
       const reader = stream.getReader()
@@ -123,9 +124,21 @@ export function useCompletion(options: UseCompletionOptions): UseCompletionRetur
 
   const isLoading = computed(() => status.value === 'submitted' || status.value === 'streaming')
 
+  const unregister = registerDevtoolsSession({
+    id,
+    kind: 'completion',
+    providerId: options.provider.id,
+    getModel: () => toValue(options.model),
+    status,
+    error,
+    output: completion,
+    stop,
+  })
+
   if (getCurrentScope()) {
     onScopeDispose(() => {
       abortController?.abort()
+      unregister()
     })
   }
 

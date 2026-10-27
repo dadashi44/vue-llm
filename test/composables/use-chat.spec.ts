@@ -274,4 +274,28 @@ describe('useChat', () => {
     const models = vi.mocked(provider.chat).mock.calls.map(([request]) => request.model)
     expect(models).toEqual(['model-a', 'model-b'])
   })
+
+  it('stays ready when stopped before the provider responds', async () => {
+    let respond!: () => void
+    const provider: LLMProvider = {
+      id: 'late',
+      supportsStreaming: true,
+      validateConfig() {},
+      chat: () => new Promise(resolve => {
+        respond = () => resolve({
+          stream: new ReadableStream<ChatStreamChunk>({ start: c => c.close() }),
+          response: Promise.resolve({ finishReason: 'stop' as const }),
+        })
+      }),
+    }
+    const { sendMessage, stop, status } = useChat({ provider, model: 'm' })
+
+    const pending = sendMessage('hi')
+    await vi.waitFor(() => expect(respond).toBeDefined())
+    stop()
+    respond()
+    await pending
+
+    expect(status.value).toBe('ready')
+  })
 })

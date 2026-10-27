@@ -22,7 +22,8 @@ The module:
 - auto-imports `useChat`, `useCompletion`, `useObject`, `usePrompt`, `createPrompt`, `createChatPrompt`, `defineTool`;
 - auto-imports the provider factories `createOpenAI`, `createAnthropic`, `createGoogle`, `createOllama`, `createSSEProvider`, `createWebLLM` and `isWebGPUSupported`;
 - registers the [`<MessageParts>`](./generative-ui) and [`<StreamMarkdown>`](./components) components. A component of yours with the same name takes precedence;
-- adds the components' stylesheet.
+- adds the components' stylesheet;
+- in development, adds the [LLM tab to Vue DevTools](./devtools) when `@vue/devtools-api` is installed. Turn it off with `vueLlm: { devtools: false }`.
 
 ## Server route
 
