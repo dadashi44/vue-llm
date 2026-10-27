@@ -1,0 +1,114 @@
+/*
+ * Tailwind + the default shadcn-vue theme, scoped to `.shadcn-preview`,
+ * so the registry components render here as they do in a shadcn-vue project
+ * without touching the VitePress styles around them.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+/* Unlayered: VitePress styles are unlayered too, and layered rules would always lose to them */
+@import "tailwindcss/utilities.css" source(none);
+
+@source "../../../../registry";
+@source "./";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+.shadcn-preview {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+}
+
+.dark .shadcn-preview {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+
+/* A "Vue" theme to show that the components follow the project's theme */
+.shadcn-preview[data-theme="vue"] {
+  --primary: oklch(0.72 0.14 160);
+  --primary-foreground: oklch(0.2 0.04 160);
+  --ring: oklch(0.72 0.14 160);
+}
+
+.dark .shadcn-preview[data-theme="vue"] {
+  --primary: oklch(0.74 0.14 160);
+  --primary-foreground: oklch(0.18 0.03 160);
+}
+
+/* Scoped preflight with zero specificity, so any utility class overrides it */
+:where(.shadcn-preview, .shadcn-preview *, .shadcn-preview ::before, .shadcn-preview ::after) {
+  box-sizing: border-box;
+  border: 0 solid var(--border);
+  margin: 0;
+  padding: 0;
+}
+
+:where(.shadcn-preview) {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+:where(.shadcn-preview) :where(button, input, textarea) {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+}
+
+:where(.shadcn-preview) :where(button:not(:disabled)) {
+  cursor: pointer;
+}
+
+:where(.shadcn-preview) :where(img, svg) {
+  display: block;
+  max-width: 100%;
+}
+
+:where(.shadcn-preview) :where(pre, code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* VitePress resets `button { border: 0 }`, which drops the theme border color */
+.shadcn-preview :where(button, input, textarea) {
+  border-color: var(--border);
+}

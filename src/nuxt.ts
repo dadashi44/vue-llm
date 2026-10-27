@@ -27,6 +27,8 @@ export default defineNuxtModule({
       { name: 'createPrompt', from: resolver.resolve('./index') },
       { name: 'createChatPrompt', from: resolver.resolve('./index') },
       { name: 'defineTool', from: resolver.resolve('./index') },
+      { name: 'usePromptInput', from: resolver.resolve('./index') },
+      { name: 'useAutoScroll', from: resolver.resolve('./index') },
     ])
 
     addImports([

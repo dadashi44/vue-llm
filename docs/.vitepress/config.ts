@@ -1,5 +1,10 @@
 import { defineConfig, type HeadConfig } from 'vitepress'
+import { fileURLToPath } from 'node:url'
+import tailwindcss from '@tailwindcss/vite'
 import { writeLLMsFiles } from './llms'
+import { writeRegistry } from './registry'
+
+const root = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url))
 
 // Public URL of the site. Change it here (and `base`) when moving to an org or a custom domain.
 const SITE_URL = 'https://dadashi44.github.io/vue-llm/'
@@ -62,6 +67,18 @@ export default defineConfig({
   },
   async buildEnd(config) {
     await writeLLMsFiles(config.srcDir, config.outDir, { siteUrl: SITE_URL, title: TITLE, description: DESCRIPTION })
+    await writeRegistry({ registryDir: root('registry'), outDir: config.outDir, homepage: SITE_URL })
+  },
+  vite: {
+    plugins: [tailwindcss()],
+    resolve: {
+      // Registry components import the package and a shadcn-vue project's `cn` helper
+      alias: [
+        { find: /^vue-llm\/components$/, replacement: root('src/components.ts') },
+        { find: /^vue-llm$/, replacement: root('src/index.ts') },
+        { find: /^@\/lib\/utils$/, replacement: root('docs/.vitepress/theme/chat-ui/utils.ts') },
+      ],
+    },
   },
   themeConfig: {
     nav: [
@@ -108,6 +125,7 @@ export default defineConfig({
           { text: 'Nuxt', link: '/guide/nuxt' },
           { text: 'DevTools', link: '/guide/devtools' },
           { text: 'Components', link: '/guide/components' },
+          { text: 'Chat UI', link: '/guide/chat-ui' },
         ],
       },
       {

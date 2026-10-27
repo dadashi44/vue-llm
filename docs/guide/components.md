@@ -11,6 +11,8 @@ import 'vue-llm/style.css' // cursor animation and small layout defaults
 
 The Nuxt module registers both components and the stylesheet for you.
 
+For a complete, styled chat interface see [Chat UI](./chat-ui).
+
 ::: info
 Components require Vue 3. On Vue 2.7 use `renderMarkdown` with `v-html` — it is plain TypeScript.
 :::
