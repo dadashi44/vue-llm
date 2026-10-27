@@ -78,8 +78,8 @@ export function createGoogle(config: GoogleConfig): LLMProvider {
       let resolveResponse: (value: ChatResponse) => void
       const responsePromise = new Promise<ChatResponse>(r => { resolveResponse = r })
 
-      const toolCallIdMap = new Map<string, string>()
       let toolCallCounter = 0
+      let sawFunctionCall = false
 
       const stream = response.body
         .pipeThrough(new TextDecoderStream())
@@ -123,7 +123,7 @@ export function createGoogle(config: GoogleConfig): LLMProvider {
 
                 if (part.functionCall) {
                   const id = `tc_gemini_${++toolCallCounter}`
-                  toolCallIdMap.set(part.functionCall.name, id)
+                  sawFunctionCall = true
 
                   controller.enqueue({
                     type: 'tool-call-start',
@@ -141,9 +141,8 @@ export function createGoogle(config: GoogleConfig): LLMProvider {
             }
 
             if (candidate.finishReason) {
-              const reason = candidate.finishReason === 'STOP' ? 'stop'
+              const reason = sawFunctionCall ? 'tool-calls'
                 : candidate.finishReason === 'MAX_TOKENS' ? 'length'
-                : candidate.finishReason === 'TOOL_CALLS' ? 'tool-calls'
                 : 'stop'
 
               const usage = parsed.usageMetadata
@@ -176,21 +175,29 @@ export function createGoogle(config: GoogleConfig): LLMProvider {
 
 function toGeminiContents(messages: ChatMessage[]): GeminiContent[] {
   const contents: GeminiContent[] = []
+  const toolNames = new Map<string, string>()
 
   for (const msg of messages) {
     if (msg.role === 'system') continue
 
     if (msg.role === 'tool') {
-      contents.push({
-        role: 'function',
-        parts: [{
-          functionResponse: {
-            name: msg.toolCallId ?? '',
-            response: { result: typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content },
-          },
-        }],
-      })
+      const part: GeminiPart = {
+        functionResponse: {
+          name: toolNames.get(msg.toolCallId ?? '') ?? msg.toolCallId ?? '',
+          response: { result: parseToolResult(msg.content) },
+        },
+      }
+      const last = contents.at(-1)
+      if (last?.role === 'user' && last.parts.every(p => p.functionResponse)) {
+        last.parts.push(part)
+      } else {
+        contents.push({ role: 'user', parts: [part] })
+      }
       continue
+    }
+
+    for (const tc of msg.toolCalls ?? []) {
+      toolNames.set(tc.id, tc.name)
     }
 
     const role = msg.role === 'assistant' ? 'model' : 'user'
@@ -227,6 +234,15 @@ function toGeminiContents(messages: ChatMessage[]): GeminiContent[] {
   }
 
   return contents
+}
+
+function parseToolResult(content: ChatMessage['content']): unknown {
+  if (typeof content !== 'string') return content
+  try {
+    return JSON.parse(content)
+  } catch {
+    return content
+  }
 }
 
 interface GeminiRequest {

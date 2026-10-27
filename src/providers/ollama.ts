@@ -55,6 +55,7 @@ export function createOllama(config?: OllamaConfig): LLMProvider {
       const responsePromise = new Promise<ChatResponse>(r => { resolveResponse = r })
 
       let buffer = ''
+      let sawToolCall = false
 
       const stream = response.body
         .pipeThrough(new TextDecoderStream())
@@ -80,6 +81,7 @@ export function createOllama(config?: OllamaConfig): LLMProvider {
 
               if (parsed.message?.tool_calls) {
                 for (const tc of parsed.message.tool_calls) {
+                  sawToolCall = true
                   const id = `ollama-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
                   controller.enqueue({
                     type: 'tool-call-start',
@@ -96,9 +98,10 @@ export function createOllama(config?: OllamaConfig): LLMProvider {
               }
 
               if (parsed.done) {
-                controller.enqueue({ type: 'finish', finishReason: 'stop' })
+                const finishReason = sawToolCall ? 'tool-calls' : 'stop'
+                controller.enqueue({ type: 'finish', finishReason })
                 resolveResponse!({
-                  finishReason: 'stop',
+                  finishReason,
                   usage: parsed.eval_count ? {
                     promptTokens: parsed.prompt_eval_count ?? 0,
                     completionTokens: parsed.eval_count,
@@ -116,7 +119,31 @@ export function createOllama(config?: OllamaConfig): LLMProvider {
 }
 
 function toOllamaMessages(messages: ChatMessage[]): unknown[] {
+  const toolNames = new Map<string, string>()
+
   return messages.map(msg => {
+    if (msg.role === 'tool') {
+      return {
+        role: 'tool',
+        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+        tool_name: toolNames.get(msg.toolCallId ?? ''),
+      }
+    }
+
+    if (msg.role === 'assistant' && msg.toolCalls?.length) {
+      for (const tc of msg.toolCalls) toolNames.set(tc.id, tc.name)
+      return {
+        role: 'assistant',
+        content: typeof msg.content === 'string' ? msg.content : '',
+        tool_calls: msg.toolCalls.map(tc => ({
+          function: {
+            name: tc.name,
+            arguments: typeof tc.args === 'string' ? JSON.parse(tc.args) : tc.args,
+          },
+        })),
+      }
+    }
+
     if (typeof msg.content === 'string') {
       return { role: msg.role, content: msg.content }
     }
