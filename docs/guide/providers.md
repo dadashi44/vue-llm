@@ -48,6 +48,10 @@ const remote = createOllama({ baseURL: 'http://gpu-box:11434' })
 
 Ollama needs no API key and can be used directly from the browser.
 
+## Your own backend
+
+`createSSEProvider` connects to any server that streams Server-Sent Events, mapping its event format to vue-llm chunks. See [Custom Backends](./custom-backends).
+
 ## Options
 
 | Option | Providers | Description |
@@ -82,7 +86,7 @@ const echo: LLMProvider = {
 }
 ```
 
-The stream emits `ChatStreamChunk`s: `text-delta`, `reasoning-delta`, `tool-call-start`, `tool-call-delta`, `tool-call-end`, `finish` and `error`.
+The stream emits `ChatStreamChunk`s: `text-delta`, `reasoning-delta`, `tool-call-start`, `tool-call-delta`, `tool-call-end`, `tool-result`, `finish` and `error`.
 
 ## Errors
 

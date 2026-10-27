@@ -44,6 +44,7 @@ export default defineConfig({
         text: 'Integrations',
         items: [
           { text: 'Server & Proxy', link: '/guide/server' },
+          { text: 'Custom Backends', link: '/guide/custom-backends' },
           { text: 'Nuxt', link: '/guide/nuxt' },
           { text: 'Components', link: '/guide/components' },
         ],

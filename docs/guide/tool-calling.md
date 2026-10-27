@@ -45,3 +45,7 @@ addToolResult({ toolCallId, result: { approved: true } })
 ```
 
 `maxToolRoundtrips` (default `5`) caps how many times the model may call tools in response to one message.
+
+## Server-side tools
+
+Tools that need secrets or database access should run on the server. With [`createLLMHandler`](./server#server-tools) add `execute` to the tool; with your own backend emit `tool-result` chunks via [`createSSEProvider`](./custom-backends#server-side-tool-results). Either way the part's `state` becomes `result` and the client makes no extra request.
