@@ -41,11 +41,11 @@
 
 ## `vue-llm/providers`
 
-[`createOpenAI`](/guide/providers#openai), [`createAnthropic`](/guide/providers#anthropic), [`createGoogle`](/guide/providers#google-gemini), [`createOllama`](/guide/providers#ollama).
+[`createOpenAI`](/guide/providers#openai), [`createAnthropic`](/guide/providers#anthropic), [`createGoogle`](/guide/providers#google-gemini), [`createOllama`](/guide/providers#ollama), [`createSSEProvider`](/guide/custom-backends).
 
 ## `vue-llm/server`
 
-[`createLLMHandler`](/guide/server#createllmhandler), [`createProxyProvider`](/guide/server#createproxyprovider), [`streamToSSE`](/guide/server#streamtosse).
+[`createLLMHandler`](/guide/server#createllmhandler) (with [server tools](/guide/server#server-tools)), [`createProxyProvider`](/guide/server#createproxyprovider), [`streamToSSE`](/guide/server#streamtosse).
 
 ## `vue-llm/nuxt`
 

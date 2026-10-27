@@ -28,6 +28,8 @@ features:
     details: Retries with exponential backoff, client-side and server-side rate limiting.
   - title: Prompt templates
     details: "{{variables}} inferred at the type level, chat templates and reactive usePrompt."
+  - title: Any backend
+    details: Server-side tools in createLLMHandler, or plug useChat into your existing SSE backend with createSSEProvider.
   - title: Server & Nuxt
     details: Web-standard request handler, proxy provider and a Nuxt module with auto-imports.
 ---

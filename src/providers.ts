@@ -9,3 +9,6 @@ export type { GoogleConfig } from './providers/google'
 
 export { createOllama } from './providers/ollama'
 export type { OllamaConfig } from './providers/ollama'
+
+export { createSSEProvider } from './providers/sse'
+export type { SSEProviderConfig, SSEProviderEvent } from './providers/sse'

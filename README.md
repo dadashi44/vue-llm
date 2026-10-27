@@ -15,6 +15,7 @@ AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
 - **Persistence** — restore chat history from localStorage or any custom backend
 - **Resilience** — retries with exponential backoff, client and server rate limiting
 - **Prompt templates** — `{{variables}}` with type inference, chat templates, reactive `usePrompt`
+- **Any backend** — server-side tools in `createLLMHandler`, `createSSEProvider` for your own SSE API
 - **Streaming** — SSE parser, text/reasoning/tool-call deltas
 - **Security** — `dangerouslyAllowBrowser` guard protects API keys
 - **Nuxt module** — auto-imports, server-side runtime config
