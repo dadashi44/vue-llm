@@ -4,12 +4,13 @@ AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
 
 `useChat()` with streaming, tool calling, multi-provider support — in 10 lines of code.
 
-**Documentation:** https://dadashi44.github.io/vue-llm/
+**Documentation:** https://dadashi44.github.io/vue-llm/ · **[Try it in your browser](https://dadashi44.github.io/vue-llm/playground)** — no API key needed
 
 ## Features
 
 - **`useChat()`** — reactive composable with streaming, abort, regenerate
-- **Multi-provider** — OpenAI, Anthropic, Ollama out of the box
+- **Multi-provider** — OpenAI, Anthropic, Gemini, Ollama out of the box
+- **In-browser models** — run Llama, Qwen or SmolLM on WebGPU with `createWebLLM`, no server or API key
 - **Tool calling** — automatic roundtrips with `onToolCall` handler
 - **Attachments** — images, PDFs, audio and text files, mapped per provider
 - **Persistence** — restore chat history from localStorage or any custom backend
@@ -98,6 +99,25 @@ const { messages, sendMessage } = useChat({
   model: 'llama3',
 })
 ```
+
+### In the browser (WebGPU)
+
+```ts
+import { CreateMLCEngine } from '@mlc-ai/web-llm' // npm i @mlc-ai/web-llm
+import { createWebLLM } from 'vue-llm/providers'
+
+const ai = createWebLLM({
+  createEngine: CreateMLCEngine,
+  onProgress: ({ progress }) => console.log(`${Math.round(progress * 100)}%`),
+})
+
+const { messages, sendMessage } = useChat({
+  provider: ai,
+  model: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+})
+```
+
+The model runs on the user's GPU, and nothing leaves the device. See [In-Browser Models](https://dadashi44.github.io/vue-llm/guide/in-browser).
 
 ## Tool Calling
 

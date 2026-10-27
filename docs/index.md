@@ -10,6 +10,9 @@ hero:
       text: Get Started
       link: /guide/getting-started
     - theme: alt
+      text: Try it in your browser
+      link: /playground
+    - theme: alt
       text: API Reference
       link: /api/
 
@@ -18,6 +21,8 @@ features:
     details: useChat, useCompletion and useObject with streaming, abort, regenerate and status refs.
   - title: Multi-provider
     details: OpenAI, Anthropic, Google Gemini and Ollama behind one LLMProvider interface.
+  - title: In-browser models
+    details: Run Llama, Qwen or SmolLM on WebGPU with createWebLLM — no API key, no server, nothing leaves the tab.
   - title: Tool calling
     details: Automatic tool roundtrips with an onToolCall handler.
   - title: Attachments

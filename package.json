@@ -81,16 +81,21 @@
     "test:vue2": "vitest run --config vitest.vue2.config.ts"
   },
   "peerDependencies": {
+    "@mlc-ai/web-llm": ">=0.2.70",
     "@nuxt/kit": "^3.0.0 || ^4.0.0",
     "vue": "^2.7.0 || ^3.3.0"
   },
   "peerDependenciesMeta": {
     "@nuxt/kit": {
       "optional": true
+    },
+    "@mlc-ai/web-llm": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@mlc-ai/web-llm": "^0.2.86",
     "@nuxt/kit": "^3.16.0",
     "@vitejs/plugin-vue": "^6.0.10",
     "@vue/test-utils": "^2.4.6",

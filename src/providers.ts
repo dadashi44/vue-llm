@@ -12,3 +12,6 @@ export type { OllamaConfig } from './providers/ollama'
 
 export { createSSEProvider } from './providers/sse'
 export type { SSEProviderConfig, SSEProviderEvent } from './providers/sse'
+
+export { createWebLLM, isWebGPUSupported } from './providers/webllm'
+export type { WebLLMConfig, WebLLMProvider, WebLLMProgress, WebLLMEngine, CreateWebLLMEngine } from './providers/webllm'
