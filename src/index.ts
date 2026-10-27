@@ -8,6 +8,12 @@ export { useObject } from './composables/use-object'
 export type { UseObjectOptions, UseObjectReturn } from './composables/use-object'
 
 export { usePrompt } from './composables/use-prompt'
+
+export { usePromptInput } from './composables/use-prompt-input'
+export type { UsePromptInputOptions, UsePromptInputReturn, PromptInputChat } from './composables/use-prompt-input'
+
+export { useAutoScroll } from './composables/use-auto-scroll'
+export type { UseAutoScrollOptions, UseAutoScrollReturn } from './composables/use-auto-scroll'
 export { createPrompt, createChatPrompt, renderTemplate } from './core/prompt'
 export type {
   PromptTemplate,

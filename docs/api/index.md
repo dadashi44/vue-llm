@@ -15,6 +15,13 @@ description: 'API reference for vue-llm: composables, providers, middleware, ser
 | [`useObject(options)`](/guide/use-object) | Streaming structured JSON output |
 | [`usePrompt(template, variables)`](/guide/prompt-templates#useprompt) | Reactive prompt rendering |
 
+### Chat UI (headless)
+
+| Export | Description |
+|--------|-------------|
+| [`usePromptInput(chat, options?)`](/guide/chat-ui#usepromptinput-chat-options) | Enter to send, IME-safe, auto-growing textarea, attachments from picker, paste and drop |
+| [`useAutoScroll(options?)`](/guide/chat-ui#useautoscroll-options) | Stick to the bottom while streaming, unpin when the user scrolls up |
+
 ### Middleware
 
 | Export | Description |

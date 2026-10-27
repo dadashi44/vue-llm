@@ -13,6 +13,9 @@ type Step = { chunk: ChatStreamChunk; delay?: number }
 const text = (value: string): Step[] =>
   value.split(/(?<= )/).map(word => ({ chunk: { type: 'text-delta', text: word }, delay: 35 }))
 
+const reasoning = (value: string): Step[] =>
+  value.split(/(?<= )/).map(word => ({ chunk: { type: 'reasoning-delta', text: word }, delay: 25 }))
+
 let callCount = 0
 
 function toolCall(name: string, args: Record<string, unknown>): Step[] {
@@ -57,6 +60,14 @@ function plan(messages: ChatMessage[]): Step[] {
     return [
       ...text('I found a table. Please confirm the booking:'),
       ...toolCall('confirm_booking', { restaurant: 'Trattoria Vue', time: '19:30', guests: 4 }),
+    ]
+  }
+  if (prompt.includes('composable')) {
+    return [
+      ...reasoning('The user wants a composable example. A counter is the smallest one that still shows refs, computed values and a function. I will keep it short and show the usage too.'),
+      ...text('Here is a minimal composable:\n\n'),
+      ...text('```ts\nimport { computed, ref } from \'vue\'\n\nexport function useCounter(initial = 0) {\n  const count = ref(initial)\n  const double = computed(() => count.value * 2)\n  const increment = () => count.value++\n  return { count, double, increment }\n}\n```\n\n'),
+      ...text('Use it in any component:\n\n1. Call `useCounter()` in `setup`\n2. Bind `count` in the template\n3. Call `increment` on click\n\nEach call gets **its own state**, so components never share a counter by accident.'),
     ]
   }
   return text('This demo uses a scripted model, so try one of the suggestions above.')

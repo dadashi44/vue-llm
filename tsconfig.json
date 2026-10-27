@@ -14,9 +14,11 @@
     "types": ["vitest/globals"],
     "paths": {
       "vue-llm": ["./src/index.ts"],
-      "vue-llm/*": ["./src/*"]
-    }
+      "vue-llm/*": ["./src/*"],
+      "@/lib/utils": ["./docs/.vitepress/theme/chat-ui/utils.ts"]
+    },
+    "noUnusedLocals": true
   },
-  "include": ["src/**/*", "test/**/*"],
+  "include": ["src/**/*", "test/**/*", "registry/**/*"],
   "exclude": ["node_modules", "dist"]
 }
