@@ -49,5 +49,6 @@ export type ChatStreamChunk =
   | { type: 'tool-call-start'; toolCallId: string; toolName: string }
   | { type: 'tool-call-delta'; toolCallId: string; args: string }
   | { type: 'tool-call-end'; toolCallId: string }
+  | { type: 'tool-result'; toolCallId: string; result?: unknown; error?: string }
   | { type: 'finish'; finishReason: FinishReason; usage?: Usage }
   | { type: 'error'; error: Error }

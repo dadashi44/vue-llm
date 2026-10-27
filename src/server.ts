@@ -1,12 +1,17 @@
 import type { LLMProvider, ChatMessage, ChatStreamChunk } from './providers/types'
 import type { ToolDefinition } from './types'
-import { createAPIError } from './core/errors'
+import { createSSEProvider } from './providers/sse'
+
+export interface ServerToolDefinition extends ToolDefinition {
+  execute?: (args: unknown, context: { request: Request; toolCallId: string }) => unknown | Promise<unknown>
+}
 
 export interface LLMHandlerOptions {
   provider: LLMProvider
   model?: string
   system?: string
-  tools?: ToolDefinition[]
+  tools?: ServerToolDefinition[]
+  maxToolRoundtrips?: number
   maxMessages?: number
   rateLimit?: ServerRateLimitOptions
   onRequest?: (body: LLMRequestBody) => LLMRequestBody | Promise<LLMRequestBody>
@@ -83,14 +88,27 @@ export function createLLMHandler(options: LLMHandlerOptions) {
     try {
       options.provider.validateConfig()
 
-      const { stream } = await options.provider.chat({
+      const chatRequest = {
         model: body.model ?? options.model ?? 'gpt-4o',
-        messages,
-        tools: options.tools,
+        tools: options.tools?.map(({ execute: _execute, ...tool }) => tool),
         signal: request.signal,
-      })
+      }
 
-      const sseStream = streamToSSE(stream)
+      const { stream } = await options.provider.chat({ ...chatRequest, messages })
+
+      const executable = new Map(
+        (options.tools ?? []).filter(tool => tool.execute).map(tool => [tool.name, tool]),
+      )
+
+      const sseStream = streamToSSE(executable.size > 0
+        ? runServerTools(stream, {
+          messages,
+          executable,
+          maxRoundtrips: options.maxToolRoundtrips ?? 5,
+          request,
+          next: history => options.provider.chat({ ...chatRequest, messages: history }).then(r => r.stream),
+        })
+        : stream)
 
       return new Response(sseStream, {
         status: 200,
@@ -107,6 +125,94 @@ export function createLLMHandler(options: LLMHandlerOptions) {
         headers: { 'Content-Type': 'application/json' },
       })
     }
+  }
+}
+
+interface ServerToolRun {
+  messages: ChatMessage[]
+  executable: Map<string, ServerToolDefinition>
+  maxRoundtrips: number
+  request: Request
+  next: (messages: ChatMessage[]) => Promise<ReadableStream<ChatStreamChunk>>
+}
+
+function runServerTools(first: ReadableStream<ChatStreamChunk>, run: ServerToolRun): ReadableStream<ChatStreamChunk> {
+  let reader: ReadableStreamDefaultReader<ChatStreamChunk> | undefined
+
+  return new ReadableStream<ChatStreamChunk>({
+    async start(controller) {
+      const history = [...run.messages]
+      let current = first
+
+      try {
+        for (let round = 0; ; round++) {
+          let text = ''
+          const calls = new Map<string, { name: string; args: string }>()
+          let finish: Extract<ChatStreamChunk, { type: 'finish' }> | undefined
+
+          reader = current.getReader()
+          for (let r = await reader.read(); !r.done; r = await reader.read()) {
+            const chunk = r.value
+            if (chunk.type === 'finish') {
+              finish = chunk
+              continue
+            }
+            if (chunk.type === 'text-delta') text += chunk.text
+            if (chunk.type === 'tool-call-start') calls.set(chunk.toolCallId, { name: chunk.toolName, args: '' })
+            if (chunk.type === 'tool-call-delta') {
+              const call = calls.get(chunk.toolCallId)
+              if (call) call.args += chunk.args
+            }
+            controller.enqueue(chunk)
+          }
+
+          const toolCalls = [...calls].map(([id, call]) => ({ id, name: call.name, args: parseArgs(call.args) }))
+          const runnable = toolCalls.filter(tc => run.executable.has(tc.name))
+
+          if (finish?.finishReason !== 'tool-calls' || runnable.length === 0 || round >= run.maxRoundtrips) {
+            if (finish) controller.enqueue(finish)
+            break
+          }
+
+          history.push({ role: 'assistant', content: text, toolCalls })
+
+          for (const tc of runnable) {
+            try {
+              const result = await run.executable.get(tc.name)!.execute!(tc.args, { request: run.request, toolCallId: tc.id })
+              controller.enqueue({ type: 'tool-result', toolCallId: tc.id, result })
+              history.push({ role: 'tool', toolCallId: tc.id, content: JSON.stringify(result ?? null) })
+            } catch (err) {
+              const error = err instanceof Error ? err.message : String(err)
+              controller.enqueue({ type: 'tool-result', toolCallId: tc.id, error })
+              history.push({ role: 'tool', toolCallId: tc.id, content: JSON.stringify({ error }) })
+            }
+          }
+
+          if (runnable.length < toolCalls.length) {
+            controller.enqueue(finish)
+            break
+          }
+
+          current = await run.next(history)
+        }
+      } catch (err) {
+        if (run.request.signal.aborted) return
+        controller.enqueue({ type: 'error', error: err instanceof Error ? err : new Error(String(err)) })
+      }
+      controller.close()
+    },
+    cancel(reason) {
+      return reader?.cancel(reason)
+    },
+  })
+}
+
+function parseArgs(args: string): unknown {
+  if (!args) return {}
+  try {
+    return JSON.parse(args)
+  } catch {
+    return args
   }
 }
 
@@ -171,85 +277,5 @@ function serializeChunk(chunk: ChatStreamChunk): string | null {
 }
 
 export function createProxyProvider(baseURL: string): LLMProvider {
-  return {
-    id: 'proxy',
-    supportsStreaming: true,
-
-    validateConfig() {},
-
-    async chat(request) {
-      const response = await fetch(baseURL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: request.messages,
-          model: request.model,
-        }),
-        signal: request.signal,
-      })
-
-      if (!response.ok) {
-        throw await createAPIError('proxy', 'Proxy', response)
-      }
-
-      if (!response.body) {
-        throw new Error('[vue-llm] No response body from proxy')
-      }
-
-      let resolveResponse: (value: import('./providers/types').ChatResponse) => void
-      const responsePromise = new Promise<import('./providers/types').ChatResponse>(r => { resolveResponse = r })
-
-      const stream = response.body
-        .pipeThrough(new TextDecoderStream())
-        .pipeThrough(new TransformStream<string, string>({
-          buffer: '',
-          transform(chunk, controller) {
-            (this as unknown as { buffer: string }).buffer += chunk
-            const lines = (this as unknown as { buffer: string }).buffer.split('\n')
-            ;(this as unknown as { buffer: string }).buffer = lines.pop()!
-            for (const line of lines) {
-              const trimmed = line.trim()
-              if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
-                controller.enqueue(trimmed.slice(6))
-              }
-            }
-          },
-          flush(controller) {
-            const remaining = (this as unknown as { buffer: string }).buffer.trim()
-            if (remaining.startsWith('data: ') && remaining !== 'data: [DONE]') {
-              controller.enqueue(remaining.slice(6))
-            }
-          },
-        } as Transformer<string, string>))
-        .pipeThrough(new TransformStream<string, ChatStreamChunk>({
-          transform(data, controller) {
-            let parsed: ChatStreamChunk & { message?: string }
-            try {
-              parsed = JSON.parse(data)
-            } catch {
-              return
-            }
-
-            if (parsed.type === 'error') {
-              controller.enqueue({
-                type: 'error',
-                error: new Error((parsed as { message?: string }).message ?? 'Unknown proxy error'),
-              })
-              return
-            }
-
-            if (parsed.type === 'finish') {
-              resolveResponse!({
-                finishReason: parsed.finishReason,
-                usage: parsed.usage,
-              })
-            }
-
-            controller.enqueue(parsed)
-          },
-        }))
-
-      return { stream, response: responsePromise }
-    },
-  }
+  return createSSEProvider({ id: 'proxy', name: 'Proxy', url: baseURL })
 }

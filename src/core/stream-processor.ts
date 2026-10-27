@@ -52,12 +52,11 @@ export class StreamProcessor {
           const tc = { toolCallId: value.toolCallId, toolName: this.getToolName(assistantMsg, value.toolCallId), args }
           toolCalls.push(tc)
 
+          const part = this.findToolCallPart(assistantMsg, value.toolCallId)
+          if (part) part.args = args
+
           if (callbacks.onToolCall) {
-            const part = this.findToolCallPart(assistantMsg, value.toolCallId)
-            if (part) {
-              part.state = 'running'
-              part.args = args
-            }
+            if (part) part.state = 'running'
             this.triggerReactivity()
 
             try {
@@ -75,6 +74,17 @@ export class StreamProcessor {
               }
             }
           }
+        }
+
+        if (value.type === 'tool-result') {
+          const part = this.findToolCallPart(assistantMsg, value.toolCallId)
+          if (part) {
+            part.state = value.error !== undefined ? 'error' : 'result'
+            part.result = value.result
+            part.error = value.error
+          }
+          const index = toolCalls.findIndex(tc => tc.toolCallId === value.toolCallId)
+          if (index !== -1) toolCalls.splice(index, 1)
         }
 
         if (value.type === 'finish') {
@@ -162,6 +172,7 @@ export class StreamProcessor {
         break
 
       case 'tool-call-end':
+      case 'tool-result':
         break
 
       case 'finish':
