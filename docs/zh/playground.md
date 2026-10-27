@@ -3,7 +3,7 @@ description: '与完全在浏览器中通过 WebGPU 运行的 LLM 聊天，基�
 title: 在线体验
 ---
 
-# 在线体验
+<TokenStreamHero title="在线体验" />
 
 这是一个真实的 `useChat`，模型通过 WebGPU **在你的浏览器中** 运行。无需 API key，无需服务器，你输入的内容不会离开当前标签页。模型只需下载一次，之后浏览器会将其缓存以供再次访问。
 

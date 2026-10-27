@@ -3,7 +3,7 @@ description: 'Chatea con un LLM que se ejecuta por completo en tu navegador sobr
 title: Playground
 ---
 
-# Playground
+<TokenStreamHero title="Playground" />
 
 Un `useChat` real ejecutando un modelo **en tu navegador** sobre WebGPU. Sin API key, sin servidor, y nada de lo que escribes sale de esta pestaña. El modelo se descarga una sola vez y el navegador lo guarda en caché para las próximas visitas.
 

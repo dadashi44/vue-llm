@@ -3,7 +3,7 @@ description: 'Converse com um LLM rodando inteiramente no seu navegador em WebGP
 title: Playground
 ---
 
-# Playground
+<TokenStreamHero title="Playground" />
 
 Um `useChat` de verdade rodando um modelo **no seu navegador** em WebGPU. Sem API key, sem servidor, e nada do que você digita sai desta aba. O modelo é baixado uma vez e o navegador o guarda em cache para as próximas visitas.
 

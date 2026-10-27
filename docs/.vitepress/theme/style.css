@@ -1,0 +1,156 @@
+/* vue-llm theme: Vue green brand, deeper dark surfaces, home hero backdrop */
+
+:root {
+  --vp-c-brand-1: #18794e;
+  --vp-c-brand-2: #1f8a5c;
+  --vp-c-brand-3: #299764;
+  --vp-c-brand-soft: rgba(66, 184, 131, 0.14);
+
+  --vp-button-brand-bg: #18794e;
+  --vp-button-brand-hover-bg: #1f8a5c;
+  --vp-button-brand-active-bg: #299764;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-active-text: #ffffff;
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #18794e 10%, #42b883 60%, #35495e 100%);
+
+  --hero-grid: rgba(15, 23, 42, 0.06);
+  --hero-glow: rgba(66, 184, 131, 0.22);
+}
+
+.dark {
+  --vp-c-bg: #0b0e13;
+  --vp-c-bg-alt: #080a0e;
+  --vp-c-bg-elv: #12171e;
+  --vp-c-bg-soft: #12171e;
+
+  --vp-c-brand-1: #42b883;
+  --vp-c-brand-2: #3aa876;
+  --vp-c-brand-3: #2f8f63;
+  --vp-c-brand-soft: rgba(66, 184, 131, 0.16);
+
+  --vp-button-brand-bg: #42b883;
+  --vp-button-brand-hover-bg: #5cc595;
+  --vp-button-brand-active-bg: #3aa876;
+  --vp-button-brand-text: #06140d;
+  --vp-button-brand-hover-text: #06140d;
+  --vp-button-brand-active-text: #06140d;
+
+  --vp-home-hero-name-background: linear-gradient(120deg, #42b883 10%, #7fd7ad 55%, #e6edf3 100%);
+
+  --hero-grid: rgba(255, 255, 255, 0.04);
+  --hero-glow: rgba(66, 184, 131, 0.2);
+}
+
+/* Home hero: grid fading out from the chat, and a soft glow behind it */
+.VPHome {
+  position: relative;
+  isolation: isolate;
+  /* The glow extends past the viewport; never let it cause horizontal scroll */
+  overflow-x: clip;
+}
+
+.VPHome::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 900px;
+  z-index: -1;
+  background-image:
+    linear-gradient(var(--hero-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hero-grid) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 70% 30%, #000 30%, transparent 75%);
+  pointer-events: none;
+}
+
+.VPHome::after {
+  content: '';
+  position: absolute;
+  top: -260px;
+  right: -120px;
+  width: 760px;
+  height: 760px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--hero-glow), transparent 65%);
+  pointer-events: none;
+}
+
+.VPHero .name {
+  letter-spacing: -0.035em;
+}
+
+.VPHero .text {
+  letter-spacing: -0.035em;
+}
+
+.VPHero .tagline {
+  max-width: 560px;
+}
+
+/* The image column holds the animated chat instead of a picture */
+.VPHero .image-container {
+  width: 100%;
+  height: auto;
+  transform: none;
+}
+
+.VPHero .image-bg {
+  display: none;
+}
+
+/* Text first, chat second, on every screen size */
+.VPHero .main {
+  order: 1;
+}
+
+.VPHero .image {
+  order: 2;
+}
+
+@media (max-width: 959px) {
+  .VPHero .image {
+    margin: 40px 0 0;
+    padding: 0 24px;
+  }
+}
+
+@media (min-width: 960px) {
+  .VPHero .image {
+    margin: 0;
+    flex-basis: 520px;
+    flex-shrink: 0;
+  }
+}
+
+/* Feature cards: subtle lift and brand border on hover */
+.VPFeature {
+  transition: border-color 0.25s, transform 0.25s, background-color 0.25s;
+}
+
+.VPFeature:hover {
+  border-color: color-mix(in srgb, var(--vp-c-brand-1) 50%, transparent);
+  transform: translateY(-2px);
+}
+
+.dark .VPFeature {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+}
+
+/* Translucent navbar over the hero */
+.VPNavBar:not(.has-sidebar):not(.home.top) .content-body,
+.VPNavBar.home .content-body {
+  backdrop-filter: saturate(160%) blur(10px);
+}
+
+.dark .VPNavBar.home .content-body {
+  background-color: rgba(11, 14, 19, 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .VPFeature { transition: none; }
+  .VPFeature:hover { transform: none; }
+}

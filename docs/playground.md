@@ -3,7 +3,7 @@ description: 'Chat with an LLM running entirely in your browser on WebGPU, built
 title: Playground
 ---
 
-# Playground
+<TokenStreamHero title="Playground" />
 
 A real `useChat` running a model **in your browser** on WebGPU. No API key, no server, and nothing you type leaves this tab. The model downloads once and the browser caches it for later visits.
 
