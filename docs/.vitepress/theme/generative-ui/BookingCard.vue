@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { track } from '../analytics'
 import type { ToolComponentProps } from '../../../../src/types'
 
 type Booking = { restaurant: string; time: string; guests: number }
@@ -7,6 +8,7 @@ type Decision = Booking & { confirmed: boolean }
 const props = defineProps<ToolComponentProps<Booking, Decision>>()
 
 function decide(confirmed: boolean): void {
+  track('demo_booking', { confirmed })
   const { restaurant = '', time = '', guests = 0 } = props.args ?? {}
   props.addResult({ restaurant, time, guests, confirmed })
 }

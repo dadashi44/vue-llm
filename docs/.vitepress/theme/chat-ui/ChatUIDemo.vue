@@ -4,6 +4,7 @@ import { useChat, defineTool } from 'vue-llm'
 import { Chat } from '../../../../registry/chat'
 import { fakeWeather, scriptedProvider } from '../generative-ui/scripted-provider'
 import './preview.css'
+import { track } from '../analytics'
 
 const getWeather = defineTool<{ city: string; days: number }>({
   name: 'get_weather',
@@ -15,7 +16,12 @@ const getWeather = defineTool<{ city: string; days: number }>({
   },
 })
 
-const chat = useChat({ provider: scriptedProvider, model: 'scripted', tools: [getWeather] })
+const chat = useChat({
+  provider: scriptedProvider,
+  model: 'scripted',
+  tools: [getWeather],
+  onFinish: () => track('demo_message', { demo: 'chat-ui', theme: theme.value }),
+})
 const theme = ref<'neutral' | 'vue'>('neutral')
 const suggestions = ['Show me a Vue composable', 'What is the weather in Oslo?']
 </script>

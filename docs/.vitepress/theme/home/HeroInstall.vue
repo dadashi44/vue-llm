@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useStrings } from '../strings'
+import { track } from '../analytics'
 
 const strings = useStrings()
 const copied = ref(false)
 
 async function copy(): Promise<void> {
-  await navigator.clipboard?.writeText('npm i vue-llm')
+  track('copy_install', { place: 'hero' })
+  try {
+    await navigator.clipboard.writeText('npm i vue-llm')
+  } catch {
+    // Clipboard blocked (insecure context or denied permission): the text stays selectable
+    return
+  }
   copied.value = true
   setTimeout(() => (copied.value = false), 1500)
 }
