@@ -12,7 +12,7 @@ export type SendMessageInput = string | { text?: string; files?: FileInput }
 export interface UseChatOptions {
   id?: string
   provider: LLMProvider
-  model: string
+  model: MaybeRefOrGetter<string>
   system?: MaybeRefOrGetter<string | undefined>
   initialMessages?: UIMessage[]
   body?: MaybeRef<Record<string, unknown>>
@@ -165,7 +165,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
       options.provider.validateConfig()
 
       const { stream } = await options.provider.chat({
-        model: options.model,
+        model: toValue(options.model),
         messages: chatMessages,
         tools: options.tools,
         signal,
