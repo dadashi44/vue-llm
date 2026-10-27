@@ -43,7 +43,7 @@
     "url": "git+https://github.com/dadashi44/vue-llm.git"
   },
   "bugs": "https://github.com/dadashi44/vue-llm/issues",
-  "homepage": "https://dadashi44.github.io/vue-llm/",
+  "homepage": "https://vue-llm.js.org/",
   "sideEffects": [
     "*.css"
   ],
