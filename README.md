@@ -1,5 +1,7 @@
 # vue-llm
 
+**English** · [Русский](./README.ru.md) · [简体中文](./README.zh-CN.md) · [Português](./README.pt-BR.md) · [Español](./README.es.md) · [日本語](./README.ja.md)
+
 [![npm version](https://img.shields.io/npm/v/vue-llm.svg)](https://www.npmjs.com/package/vue-llm)
 [![npm downloads](https://img.shields.io/npm/dm/vue-llm.svg)](https://www.npmjs.com/package/vue-llm)
 [![CI](https://github.com/dadashi44/vue-llm/actions/workflows/ci.yml/badge.svg)](https://github.com/dadashi44/vue-llm/actions/workflows/ci.yml)
@@ -91,7 +93,7 @@ const ai = createAnthropic({
 
 const { messages, sendMessage } = useChat({
   provider: ai,
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-sonnet-4-5',
 })
 ```
 
@@ -314,7 +316,7 @@ Returns a reactive chat interface.
 |--------|------|-------------|
 | `provider` | `LLMProvider` | Provider instance (required) |
 | `model` | `string` | Model ID (required) |
-| `system` | `string` | System prompt |
+| `system` | `MaybeRefOrGetter<string>` | System prompt |
 | `tools` | `ToolDefinition[]` | Available tools |
 | `onToolCall` | `(call) => unknown` | Tool call handler |
 | `onFinish` | `(msg, ctx) => void` | Called when response completes |
@@ -330,12 +332,12 @@ Returns a reactive chat interface.
 | `status` | `Ref<ChatStatus>` | `'ready' \| 'submitted' \| 'streaming' \| 'error'` |
 | `error` | `Ref<Error \| undefined>` | Last error |
 | `input` | `Ref<string>` | Input text (v-model) |
-| `isLoading` | `ComputedRef<boolean>` | Whether a request is active |
+| `isLoading` | `Ref<boolean>` | Whether a request is active |
 | `sendMessage` | `(text? \| { text?, files? }) => Promise` | Send a message, optionally with attachments |
 | `stop` | `() => void` | Abort current stream |
-| `regenerate` | `() => Promise` | Re-send last user message |
+| `regenerate` | `() => Promise` | Drop the last assistant message and generate it again |
 | `setMessages` | `(msgs) => void` | Replace message history |
-| `handleSubmit` | `() => Promise` | Form submit handler (sends `input.value`) |
+| `handleSubmit` | `(event?: Event) => void` | Form submit handler (sends `input.value`) |
 | `clearError` | `() => void` | Clear error state |
 | `isRestored` | `Ref<boolean>` | `false` while async storage is loading |
 
@@ -380,14 +382,18 @@ Messages use a parts-based format for rich content:
 ```ts
 interface UIMessage {
   id: string
-  role: 'user' | 'assistant'
+  role: 'system' | 'user' | 'assistant'
   parts: UIMessagePart[]
+  metadata?: Record<string, unknown>
+  createdAt?: Date
 }
 
 type UIMessagePart =
-  | { type: 'text'; text: string; state: 'streaming' | 'done' }
-  | { type: 'reasoning'; text: string; state: 'streaming' | 'done' }
-  | { type: 'tool-call'; toolCallId: string; toolName: string; args: unknown; state: string }
+  | { type: 'text'; text: string; state?: 'streaming' | 'done' }
+  | { type: 'reasoning'; text: string; state?: 'streaming' | 'done' }
+  | { type: 'tool-call'; toolCallId: string; toolName: string; args: unknown; state: 'streaming' | 'pending' | 'running' | 'result' | 'error'; result?: unknown; error?: string }
+  | { type: 'file'; mediaType: string; url: string; filename?: string }
+  | { type: 'source'; url: string; title?: string }
 ```
 
 ## License

@@ -1,5 +1,5 @@
 ---
-description: Render LLM tool calls as Vue components. Stream tool arguments into the UI, run tools on the client and ask the user to confirm actions (human in the loop).
+description: 'Render LLM tool calls as Vue components. Stream tool arguments into the UI, run tools on the client and ask the user to confirm actions (human in the loop).'
 ---
 
 # Generative UI

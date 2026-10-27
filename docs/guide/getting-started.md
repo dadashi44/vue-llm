@@ -40,10 +40,12 @@ Vue 2.7 is supported through its built-in Composition API — use the composable
 | Import | Contents |
 |--------|----------|
 | `vue-llm` | Composables, middleware, storage, prompt templates, types |
-| `vue-llm/providers` | `createOpenAI`, `createAnthropic`, `createGoogle`, `createOllama` |
+| `vue-llm/providers` | `createOpenAI`, `createAnthropic`, `createGoogle`, `createOllama`, `createSSEProvider`, `createWebLLM`, `isWebGPUSupported` |
 | `vue-llm/server` | `createLLMHandler`, `streamToSSE`, `createProxyProvider` |
 | `vue-llm/nuxt` | Nuxt module |
 | `vue-llm/components` | Vue components |
+| `vue-llm/devtools` | Vue DevTools plugin |
+| `vue-llm/style.css` | Styles for the components |
 
 ## Your first chat
 

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import { writeLLMsFiles } from './llms'
 import { writeRegistry } from './registry'
+import { LOCALES, LOCALE_KEYS, localePrefix, localesConfig, searchLocales, splitLocale } from './locales'
 
 const root = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url))
 
@@ -11,7 +12,7 @@ const SITE_URL = 'https://dadashi44.github.io/vue-llm/'
 const BASE = '/vue-llm/'
 const REPO_URL = 'https://github.com/dadashi44/vue-llm'
 const TITLE = 'vue-llm'
-const DESCRIPTION = 'Vue composables for AI and LLM apps: streaming useChat, tool calling, Generative UI and in-browser models for OpenAI, Anthropic, Gemini, Ollama and WebGPU. The missing AI SDK for Vue and Nuxt.'
+const DESCRIPTION = LOCALES.root.description
 
 const structuredData = {
   '@context': 'https://schema.org',
@@ -49,14 +50,20 @@ export default defineConfig({
     ['link', { rel: 'alternate', type: 'text/plain', title: 'LLM-friendly docs', href: `${BASE}llms.txt` }],
     ['script', { type: 'application/ld+json' }, JSON.stringify(structuredData)],
   ],
-  // Per-page canonical URL and social metadata
+  locales: localesConfig(REPO_URL),
+  // Per-page canonical URL, language alternates and social metadata
   transformPageData(pageData) {
-    const path = pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
-    const url = SITE_URL + path
-    const title = pageData.frontmatter.layout === 'home' ? `${TITLE} — the AI SDK for Vue` : `${pageData.title} | ${TITLE}`
-    const description = pageData.frontmatter.description || pageData.description || DESCRIPTION
+    const { key, path: localPath } = splitLocale(pageData.relativePath)
+    const slug = localPath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
+    const strings = LOCALES[key]
+    const url = SITE_URL + localePrefix(key) + slug
+    const title = pageData.frontmatter.layout === 'home' ? `${TITLE} — ${strings.homeTitle}` : `${pageData.title} | ${TITLE}`
+    const description = pageData.frontmatter.description || pageData.description || strings.description
     const head: HeadConfig[] = [
       ['link', { rel: 'canonical', href: url }],
+      ...LOCALE_KEYS.map((k): HeadConfig => ['link', { rel: 'alternate', hreflang: LOCALES[k].lang, href: SITE_URL + localePrefix(k) + slug }]),
+      ['link', { rel: 'alternate', hreflang: 'x-default', href: SITE_URL + slug }],
+      ['meta', { property: 'og:locale', content: strings.ogLocale }],
       ['meta', { property: 'og:url', content: url }],
       ['meta', { property: 'og:title', content: title }],
       ['meta', { property: 'og:description', content: description }],
@@ -81,64 +88,8 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    nav: [
-      { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'Playground', link: '/playground' },
-      { text: 'API', link: '/api/' },
-      { text: 'npm', link: 'https://www.npmjs.com/package/vue-llm' },
-    ],
-    sidebar: [
-      {
-        text: 'Introduction',
-        items: [
-          { text: 'Getting Started', link: '/guide/getting-started' },
-          { text: 'Providers', link: '/guide/providers' },
-          { text: 'In-Browser Models', link: '/guide/in-browser' },
-          { text: 'Security', link: '/guide/security' },
-        ],
-      },
-      {
-        text: 'Composables',
-        items: [
-          { text: 'useChat', link: '/guide/use-chat' },
-          { text: 'useCompletion', link: '/guide/use-completion' },
-          { text: 'useObject', link: '/guide/use-object' },
-          { text: 'Tool Calling', link: '/guide/tool-calling' },
-          { text: 'Generative UI', link: '/guide/generative-ui' },
-        ],
-      },
-      {
-        text: 'Features',
-        items: [
-          { text: 'Attachments', link: '/guide/attachments' },
-          { text: 'Persistence', link: '/guide/persistence' },
-          { text: 'Prompt Templates', link: '/guide/prompt-templates' },
-          { text: 'Middleware', link: '/guide/middleware' },
-          { text: 'Retries & Rate Limiting', link: '/guide/retries-rate-limiting' },
-        ],
-      },
-      {
-        text: 'Integrations',
-        items: [
-          { text: 'Server & Proxy', link: '/guide/server' },
-          { text: 'Custom Backends', link: '/guide/custom-backends' },
-          { text: 'Nuxt', link: '/guide/nuxt' },
-          { text: 'DevTools', link: '/guide/devtools' },
-          { text: 'Components', link: '/guide/components' },
-          { text: 'Chat UI', link: '/guide/chat-ui' },
-        ],
-      },
-      {
-        text: 'Reference',
-        items: [{ text: 'API', link: '/api/' }],
-      },
-    ],
     logo: '/logo.svg',
     socialLinks: [{ icon: 'github', link: REPO_URL }],
-    editLink: {
-      pattern: 'https://github.com/dadashi44/vue-llm/edit/main/docs/:path',
-    },
-    search: { provider: 'local' },
-    footer: { message: 'Released under the MIT License.' },
+    search: { provider: 'local', options: { locales: searchLocales() } },
   },
 })
