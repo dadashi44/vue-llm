@@ -1,3 +1,7 @@
+---
+description: 'Nuxt module for vue-llm: auto-imported composables and providers, registered chat components and a server route for LLM calls.'
+---
+
 # Nuxt
 
 ```ts

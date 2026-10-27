@@ -1,3 +1,7 @@
+---
+description: 'Typed prompt templates for LLMs in Vue: {{variables}} inferred at the type level, chat templates and reactive usePrompt.'
+---
+
 # Prompt Templates
 
 ## createPrompt

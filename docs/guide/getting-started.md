@@ -1,3 +1,7 @@
+---
+description: 'Install vue-llm and build a streaming AI chat in Vue 3 or Nuxt in a few lines with useChat. Supported Vue versions, entry points and the message format.'
+---
+
 # Getting Started
 
 ## Installation

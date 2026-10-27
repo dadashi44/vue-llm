@@ -1,3 +1,7 @@
+---
+description: 'useObject: stream structured JSON output from an LLM into a typed, partially filled Vue ref.'
+---
+
 # useObject
 
 Stream a JSON object that matches a JSON Schema. `partialObject` updates while tokens arrive; `object` is set once the JSON is complete.

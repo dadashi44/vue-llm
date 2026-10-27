@@ -1,4 +1,5 @@
 ---
+description: 'Chat with an LLM running entirely in your browser on WebGPU, built with vue-llm useChat. No API key and no server.'
 title: Playground
 ---
 

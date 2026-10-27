@@ -1,3 +1,7 @@
+---
+description: 'LLM tool and function calling in Vue: defineTool with execute, onToolCall, tool call states and human-in-the-loop with addToolResult.'
+---
+
 # Tool Calling
 
 Declare tools with JSON Schema parameters. A tool with `execute` runs automatically, its return value goes back to the model, and the conversation continues.

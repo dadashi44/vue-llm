@@ -2,7 +2,7 @@
   "name": "vue-llm",
   "version": "1.2.0",
   "type": "module",
-  "description": "AI/LLM composables for Vue — useChat, useCompletion, streaming, multi-provider. The missing AI SDK for Vue.",
+  "description": "AI SDK for Vue and Nuxt: streaming useChat, tool calling, Generative UI and in-browser WebGPU models for OpenAI, Anthropic, Gemini and Ollama.",
   "keywords": [
     "vue",
     "vue3",
@@ -20,7 +20,21 @@
     "typescript",
     "sse",
     "gpt",
-    "claude"
+    "claude",
+    "ai-sdk",
+    "chatbot",
+    "chat-ui",
+    "generative-ui",
+    "tool-calling",
+    "function-calling",
+    "webgpu",
+    "webllm",
+    "in-browser",
+    "local-llm",
+    "structured-output",
+    "vue2",
+    "composition-api",
+    "llama"
   ],
   "license": "MIT",
   "author": "dadashi44",
@@ -29,7 +43,7 @@
     "url": "git+https://github.com/dadashi44/vue-llm.git"
   },
   "bugs": "https://github.com/dadashi44/vue-llm/issues",
-  "homepage": "https://github.com/dadashi44/vue-llm#readme",
+  "homepage": "https://dadashi44.github.io/vue-llm/",
   "sideEffects": [
     "*.css"
   ],

@@ -1,3 +1,7 @@
+---
+description: 'Connect useChat to OpenAI, Anthropic Claude, Google Gemini, Ollama, in-browser WebGPU models or your own backend through one LLMProvider interface.'
+---
+
 # Providers
 
 Every provider implements the same `LLMProvider` interface, so composables, middleware and the server handler work with any of them.

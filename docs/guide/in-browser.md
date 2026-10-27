@@ -1,3 +1,7 @@
+---
+description: 'Run Llama, Qwen, SmolLM and other open models in the browser on WebGPU with createWebLLM: no API key, no server, private by default.'
+---
+
 # In-Browser Models
 
 `createWebLLM` runs open models (Llama, Qwen, SmolLM, Phi, Gemma…) directly in the browser on **WebGPU** through [WebLLM](https://github.com/mlc-ai/web-llm). Requests never leave the device, so you need no API key, server or per-token bill.

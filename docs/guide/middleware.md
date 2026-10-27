@@ -1,3 +1,7 @@
+---
+description: 'Wrap any LLM provider with middleware for logging, headers, retries, rate limits and custom request or stream handling.'
+---
+
 # Middleware
 
 `wrapProvider` returns a provider with middleware applied. Middleware runs in array order.

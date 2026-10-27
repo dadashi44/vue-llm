@@ -1,11 +1,68 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig, type HeadConfig } from 'vitepress'
+import { writeLLMsFiles } from './llms'
+
+// Public URL of the site. Change it here (and `base`) when moving to an org or a custom domain.
+const SITE_URL = 'https://dadashi44.github.io/vue-llm/'
+const BASE = '/vue-llm/'
+const REPO_URL = 'https://github.com/dadashi44/vue-llm'
+const TITLE = 'vue-llm'
+const DESCRIPTION = 'Vue composables for AI and LLM apps: streaming useChat, tool calling, Generative UI and in-browser models for OpenAI, Anthropic, Gemini, Ollama and WebGPU. The missing AI SDK for Vue and Nuxt.'
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareSourceCode',
+  'name': TITLE,
+  'description': DESCRIPTION,
+  'url': SITE_URL,
+  'codeRepository': REPO_URL,
+  'programmingLanguage': ['TypeScript', 'Vue'],
+  'runtimePlatform': ['Browser', 'Node.js', 'Nuxt'],
+  'license': 'https://opensource.org/licenses/MIT',
+  'keywords': 'vue, nuxt, ai, llm, ai sdk, useChat, streaming, openai, anthropic, gemini, ollama, webgpu, generative ui, tool calling',
+  'author': { '@type': 'Person', 'name': 'dadashi44', 'url': 'https://github.com/dadashi44' },
+}
 
 export default defineConfig({
-  title: 'vue-llm',
-  description: 'AI/LLM composables for Vue — the missing AI SDK for the Vue ecosystem.',
-  base: '/vue-llm/',
+  title: TITLE,
+  description: DESCRIPTION,
+  lang: 'en-US',
+  base: BASE,
   cleanUrls: true,
   lastUpdated: true,
+  sitemap: { hostname: SITE_URL },
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${BASE}logo.svg` }],
+    ['meta', { name: 'theme-color', content: '#42b883' }],
+    ['meta', { name: 'keywords', content: structuredData.keywords }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:site_name', content: TITLE }],
+    ['meta', { property: 'og:image', content: `${SITE_URL}og.png` }],
+    ['meta', { property: 'og:image:width', content: '1200' }],
+    ['meta', { property: 'og:image:height', content: '630' }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:image', content: `${SITE_URL}og.png` }],
+    ['link', { rel: 'alternate', type: 'text/plain', title: 'LLM-friendly docs', href: `${BASE}llms.txt` }],
+    ['script', { type: 'application/ld+json' }, JSON.stringify(structuredData)],
+  ],
+  // Per-page canonical URL and social metadata
+  transformPageData(pageData) {
+    const path = pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
+    const url = SITE_URL + path
+    const title = pageData.frontmatter.layout === 'home' ? `${TITLE} — the AI SDK for Vue` : `${pageData.title} | ${TITLE}`
+    const description = pageData.frontmatter.description || pageData.description || DESCRIPTION
+    const head: HeadConfig[] = [
+      ['link', { rel: 'canonical', href: url }],
+      ['meta', { property: 'og:url', content: url }],
+      ['meta', { property: 'og:title', content: title }],
+      ['meta', { property: 'og:description', content: description }],
+      ['meta', { name: 'twitter:title', content: title }],
+      ['meta', { name: 'twitter:description', content: description }],
+    ]
+    pageData.frontmatter.head = [...(pageData.frontmatter.head ?? []), ...head]
+  },
+  async buildEnd(config) {
+    await writeLLMsFiles(config.srcDir, config.outDir, { siteUrl: SITE_URL, title: TITLE, description: DESCRIPTION })
+  },
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
@@ -57,7 +114,8 @@ export default defineConfig({
         items: [{ text: 'API', link: '/api/' }],
       },
     ],
-    socialLinks: [{ icon: 'github', link: 'https://github.com/dadashi44/vue-llm' }],
+    logo: '/logo.svg',
+    socialLinks: [{ icon: 'github', link: REPO_URL }],
     editLink: {
       pattern: 'https://github.com/dadashi44/vue-llm/edit/main/docs/:path',
     },

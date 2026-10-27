@@ -1,3 +1,7 @@
+---
+description: 'MessageParts and StreamMarkdown: Vue components that render streaming LLM messages, safe Markdown, reasoning and tool calls.'
+---
+
 # Components
 
 ```ts

@@ -1,3 +1,7 @@
+---
+description: 'Retry failed LLM requests with exponential backoff and Retry-After, and rate limit requests on the client and the server.'
+---
+
 # Retries & Rate Limiting
 
 ## Errors
