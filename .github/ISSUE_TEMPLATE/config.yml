@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation
-    url: https://dadashi44.github.io/vue-llm/
+    url: https://vue-llm.js.org/
     about: Guides for useChat, providers, tool calling, Generative UI and more
   - name: Try it in the browser
-    url: https://dadashi44.github.io/vue-llm/playground
+    url: https://vue-llm.js.org/playground
     about: A live useChat running an LLM on WebGPU

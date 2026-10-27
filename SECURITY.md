@@ -18,4 +18,4 @@ Typical issues worth reporting:
 - XSS through model output in `StreamMarkdown`, `MessageParts` or the Chat UI components
 - Bypasses of the rate limiting or validation in `createLLMHandler`
 
-See also the [Security guide](https://dadashi44.github.io/vue-llm/guide/security) in the docs.
+See also the [Security guide](https://vue-llm.js.org/guide/security) in the docs.
