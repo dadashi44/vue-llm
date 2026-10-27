@@ -28,7 +28,12 @@ const text = computed(() => props.message.parts.map(p => (p.type === 'text' ? p.
 
 const copied = ref(false)
 async function copy(): Promise<void> {
-  await navigator.clipboard?.writeText(text.value)
+  try {
+    await navigator.clipboard.writeText(text.value)
+  } catch {
+    // Clipboard blocked (insecure context or denied permission)
+    return
+  }
   copied.value = true
   setTimeout(() => (copied.value = false), 1500)
 }

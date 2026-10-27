@@ -6,6 +6,7 @@ import MessageParts from '../../../../src/components/MessageParts.vue'
 import { fakeWeather, scriptedProvider } from './scripted-provider'
 import WeatherCard from './WeatherCard.vue'
 import BookingCard from './BookingCard.vue'
+import { track } from '../analytics'
 
 const getWeather = defineTool<{ city: string; days: number }>({
   name: 'get_weather',
@@ -40,6 +41,7 @@ const scroller = ref<HTMLElement>()
 
 function send(text?: string): void {
   if (busy.value) return
+  track('demo_message', { demo: 'generative-ui', suggestion: text ?? 'typed' })
   void sendMessage(text)
 }
 

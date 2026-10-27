@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useChat } from '../../../src/composables/use-chat'
 import { createWebLLM, isWebGPUSupported, type WebLLMProvider } from '../../../src/providers/webllm'
 import { renderMarkdown } from '../../../src/core/markdown'
 import type { UIMessage } from '../../../src/types'
+import { track } from './analytics'
 
 const MODELS = [
   { id: 'SmolLM2-360M-Instruct-q4f16_1-MLC', label: 'SmolLM2 360M', size: '~380 MB', note: 'fastest download' },
@@ -73,12 +74,16 @@ async function load(): Promise<void> {
   loadState.value = 'loading'
   loadError.value = ''
   progress.value = 0
+  const started = performance.now()
+  const seconds = () => Math.round((performance.now() - started) / 1000)
   try {
     await getProvider().load(model.value)
     loadState.value = 'ready'
+    track('playground_model_loaded', { model: model.value, seconds: seconds() })
   } catch (e) {
     loadState.value = 'error'
     loadError.value = e instanceof Error ? e.message : String(e)
+    track('playground_model_failed', { model: model.value, seconds: seconds(), error: loadError.value.slice(0, 120) })
   }
 }
 
@@ -94,6 +99,7 @@ function submit(): void {
   if (!input.value.trim() || busy.value || loadState.value !== 'ready') return
   stats.value = ''
   startedAt = performance.now()
+  track('playground_message', { model: model.value })
   void sendMessage()
 }
 
@@ -117,6 +123,10 @@ watch(
 )
 
 const suggestions = ['Explain Vue reactivity in two sentences', 'Write a haiku about TypeScript', 'What is WebGPU?']
+
+onMounted(() => {
+  if (!supported) track('playground_unsupported', { userAgent: navigator.userAgent.slice(0, 120) })
+})
 
 onBeforeUnmount(() => {
   stop()
