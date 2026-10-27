@@ -3,6 +3,7 @@ import { type MaybeRefOrGetter, toValue } from '../utils/vue'
 import type { ChatStatus, FinishReason, Usage } from '../types'
 import type { LLMProvider } from '../providers/types'
 import { generateId } from '../utils/generate-id'
+import { parsePartialJSON } from '../core/partial-json'
 
 export interface UseObjectOptions<T> {
   id?: string
@@ -87,11 +88,8 @@ export function useObject<T = unknown>(options: UseObjectOptions<T>): UseObjectR
 
         if (value.type === 'text-delta') {
           accumulated += value.text
-          try {
-            partialObject.value = parsePartialJSON(accumulated) as Partial<T>
-          } catch {
-            // partial JSON not yet parseable
-          }
+          const partial = parsePartialJSON(accumulated)
+          if (partial !== null && typeof partial === 'object') partialObject.value = partial as Partial<T>
         } else if (value.type === 'finish') {
           finishReason = value.finishReason
           usage = value.usage
@@ -156,35 +154,5 @@ export function useObject<T = unknown>(options: UseObjectOptions<T>): UseObjectR
     submit,
     stop,
     clearError,
-  }
-}
-
-function parsePartialJSON(text: string): Record<string, unknown> | undefined {
-  let cleaned = text.trim()
-  if (!cleaned.startsWith('{')) return undefined
-
-  let braceCount = 0
-  let inString = false
-  let escaped = false
-
-  for (let i = 0; i < cleaned.length; i++) {
-    const ch = cleaned[i]
-    if (escaped) { escaped = false; continue }
-    if (ch === '\\') { escaped = true; continue }
-    if (ch === '"') { inString = !inString; continue }
-    if (inString) continue
-    if (ch === '{') braceCount++
-    if (ch === '}') braceCount--
-  }
-
-  while (braceCount > 0) {
-    cleaned += '}'
-    braceCount--
-  }
-
-  try {
-    return JSON.parse(cleaned)
-  } catch {
-    return undefined
   }
 }

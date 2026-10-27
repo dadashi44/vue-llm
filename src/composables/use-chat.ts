@@ -1,6 +1,6 @@
 import { computed, getCurrentScope, onScopeDispose, ref, type Ref, watch } from 'vue'
 import { type MaybeRef, type MaybeRefOrGetter, toValue } from '../utils/vue'
-import type { ChatStatus, FinishReason, ToolDefinition, UIMessage, UIMessagePart, Usage } from '../types'
+import type { ChatStatus, ChatTool, FinishReason, ToolCallPart, UIMessage, UIMessagePart, Usage } from '../types'
 import type { ChatMessage, ContentPart, LLMProvider } from '../providers/types'
 import { StreamProcessor } from '../core/stream-processor'
 import type { ChatStorage } from '../core/storage'
@@ -17,11 +17,15 @@ export interface UseChatOptions {
   initialMessages?: UIMessage[]
   body?: MaybeRef<Record<string, unknown>>
   providerOptions?: Record<string, unknown>
-  tools?: ToolDefinition[]
+  /** Tools with `execute` run automatically; others go to `onToolCall` or wait for `addToolResult` */
+  tools?: ChatTool[]
+  /** Return a result to resolve the call, or `undefined` to resolve it later with `addToolResult` */
   onToolCall?: (toolCall: { toolCallId: string; toolName: string; args: unknown }) => unknown | Promise<unknown>
   onFinish?: (message: UIMessage, context: { finishReason: FinishReason; usage?: Usage }) => void
   onError?: (error: Error) => void
   maxToolRoundtrips?: number
+  /** Continue the conversation once `addToolResult` has resolved every pending call. Default `true`. */
+  autoSendToolResults?: boolean
   storage?: ChatStorage
 }
 
@@ -37,7 +41,8 @@ export interface UseChatReturn {
   setMessages: (messages: UIMessage[] | ((prev: UIMessage[]) => UIMessage[])) => void
   handleSubmit: (event?: Event) => void
   isLoading: Ref<boolean>
-  addToolResult: (options: { toolCallId: string; result: unknown }) => void
+  /** Resolve a tool call from the UI. Continues the chat when no other call is pending. */
+  addToolResult: (options: { toolCallId: string; result?: unknown; error?: string }) => Promise<void>
   clearError: () => void
   isRestored: Ref<boolean>
 }
@@ -141,11 +146,14 @@ export function useChat(options: UseChatOptions): UseChatReturn {
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         })
 
+        // Every call needs an answer, or providers reject the history
         for (const part of msg.parts) {
-          if (part.type !== 'tool-call' || part.state !== 'result') continue
+          if (part.type !== 'tool-call') continue
           chatMessages.push({
             role: 'tool',
-            content: JSON.stringify(part.result),
+            content: part.state === 'result'
+              ? JSON.stringify(part.result ?? null)
+              : JSON.stringify({ error: part.error ?? 'The tool call was not answered' }),
             toolCallId: part.toolCallId,
           })
         }
@@ -153,6 +161,24 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     }
 
     return chatMessages
+  }
+
+  const providerTools = options.tools?.map(({ name, description, parameters }) => ({ name, description, parameters }))
+
+  const runTool = (
+    toolCall: { toolCallId: string; toolName: string; args: unknown },
+    { signal }: { signal: AbortSignal },
+  ): unknown | Promise<unknown> => {
+    const tool = options.tools?.find(t => t.name === toolCall.toolName)
+    if (tool?.execute) return tool.execute(toolCall.args, { toolCallId: toolCall.toolCallId, signal })
+    return options.onToolCall?.(toolCall)
+  }
+
+  const hasUnresolvedToolCalls = (): boolean => {
+    const last = messages.value[messages.value.length - 1]
+    return last?.role === 'assistant' && last.parts.some(
+      p => p.type === 'tool-call' && p.state !== 'result' && p.state !== 'error',
+    )
   }
 
   const submitToProvider = async (signal: AbortSignal): Promise<void> => {
@@ -167,7 +193,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
       const { stream } = await options.provider.chat({
         model: toValue(options.model),
         messages: chatMessages,
-        tools: options.tools,
+        tools: providerTools,
         signal,
         providerOptions: {
           ...options.providerOptions,
@@ -178,10 +204,12 @@ export function useChat(options: UseChatOptions): UseChatReturn {
       const result = await processor.processStream(stream, signal, {
         onFinish: options.onFinish,
         onError: options.onError,
-        onToolCall: options.onToolCall,
+        onToolCall: runTool,
+        canHandleTool: name => !!options.onToolCall || !!options.tools?.find(t => t.name === name)?.execute,
       })
 
-      if (result.finishReason !== 'tool-calls' || result.toolCalls.length === 0) {
+      // Stop when the model is done, or pause until the UI answers the remaining calls
+      if (result.finishReason !== 'tool-calls' || result.toolCalls.length === 0 || hasUnresolvedToolCalls()) {
         break
       }
 
@@ -220,18 +248,23 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     }
 
     messages.value = [...messages.value, userMessage]
+    await run()
+  }
+
+  const run = async (): Promise<void> => {
     error.value = undefined
     status.value = 'submitted'
 
     abortController?.abort()
-    abortController = new AbortController()
+    const controller = new AbortController()
+    abortController = controller
 
     try {
-      await submitToProvider(abortController.signal)
-      status.value = 'ready'
+      await submitToProvider(controller.signal)
+      if (abortController === controller) status.value = 'ready'
     } catch (err) {
-      if (abortController.signal.aborted) {
-        status.value = 'ready'
+      if (controller.signal.aborted) {
+        if (abortController === controller) status.value = 'ready'
         return
       }
       error.value = err instanceof Error ? err : new Error(String(err))
@@ -245,23 +278,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     if (lastAssistant === -1) return
 
     messages.value = msgs.slice(0, lastAssistant)
-    error.value = undefined
-    status.value = 'submitted'
-
-    abortController?.abort()
-    abortController = new AbortController()
-
-    try {
-      await submitToProvider(abortController.signal)
-      status.value = 'ready'
-    } catch (err) {
-      if (abortController.signal.aborted) {
-        status.value = 'ready'
-        return
-      }
-      error.value = err instanceof Error ? err : new Error(String(err))
-      status.value = 'error'
-    }
+    await run()
   }
 
   const stop = (): void => {
@@ -282,16 +299,28 @@ export function useChat(options: UseChatOptions): UseChatReturn {
 
   const isLoading = computed(() => status.value === 'submitted' || status.value === 'streaming')
 
-  const addToolResult = ({ toolCallId, result }: { toolCallId: string; result: unknown }): void => {
-    for (const msg of messages.value) {
-      for (const part of msg.parts) {
-        if (part.type === 'tool-call' && part.toolCallId === toolCallId) {
-          part.state = 'result'
-          part.result = result
-          messages.value = [...messages.value]
-          return
-        }
-      }
+  const addToolResult = async (
+    { toolCallId, result, error: toolError }: { toolCallId: string; result?: unknown; error?: string },
+  ): Promise<void> => {
+    const part = messages.value
+      .flatMap(m => m.parts)
+      .find((p): p is ToolCallPart => p.type === 'tool-call' && p.toolCallId === toolCallId)
+    if (!part) return
+
+    if (toolError !== undefined) {
+      part.state = 'error'
+      part.error = toolError
+    } else {
+      part.state = 'result'
+      part.result = result
+    }
+    messages.value = [...messages.value]
+
+    const last = messages.value[messages.value.length - 1]
+    const isLatest = last?.role === 'assistant' && last.parts.includes(part)
+    const busy = status.value === 'submitted' || status.value === 'streaming'
+    if ((options.autoSendToolResults ?? true) && isLatest && !busy && !hasUnresolvedToolCalls()) {
+      await run()
     }
   }
 

@@ -30,6 +30,7 @@ export default defineConfig({
           { text: 'useCompletion', link: '/guide/use-completion' },
           { text: 'useObject', link: '/guide/use-object' },
           { text: 'Tool Calling', link: '/guide/tool-calling' },
+          { text: 'Generative UI', link: '/guide/generative-ui' },
         ],
       },
       {

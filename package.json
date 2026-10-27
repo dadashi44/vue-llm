@@ -30,7 +30,9 @@
   },
   "bugs": "https://github.com/dadashi44/vue-llm/issues",
   "homepage": "https://github.com/dadashi44/vue-llm#readme",
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -55,7 +57,8 @@
       "import": "./dist/server.js",
       "require": "./dist/server.cjs"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./style.css": "./dist/vue-llm.css"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
