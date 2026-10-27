@@ -6,7 +6,7 @@
  */
 
 // Public ids, safe to commit
-const UMAMI_WEBSITE_ID = '' // from cloud.umami.is → Websites → Edit
+const UMAMI_WEBSITE_ID = '105f58da-2a36-4ecb-91b2-8d174c5f9ac3' // from cloud.umami.is → Websites → Edit
 const AMPLITUDE_API_KEY = '' // browser API key from Amplitude project settings
 
 const PRODUCTION_HOST = 'dadashi44.github.io'
