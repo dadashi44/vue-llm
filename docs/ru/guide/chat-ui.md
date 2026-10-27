@@ -25,7 +25,7 @@ description: 'Готовый интерфейс AI-чата для Vue: доба
 Нужен проект с [shadcn-vue](https://www.shadcn-vue.com/docs/installation), то есть с Tailwind CSS и `lib/utils.ts`.
 
 ```bash
-npx shadcn-vue@latest add https://dadashi44.github.io/vue-llm/r/chat.json
+npx shadcn-vue@latest add https://vue-llm.js.org/r/chat.json
 ```
 
 CLI устанавливает `vue-llm` и вашу библиотеку иконок (по умолчанию Lucide; другие библиотеки иконок CLI сопоставляет сам) и записывает компоненты в `components/ui/chat/`.

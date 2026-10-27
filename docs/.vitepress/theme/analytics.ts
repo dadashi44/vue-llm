@@ -9,7 +9,7 @@
 const UMAMI_WEBSITE_ID = '105f58da-2a36-4ecb-91b2-8d174c5f9ac3' // from cloud.umami.is → Websites → Edit
 const AMPLITUDE_API_KEY = '24957eb89073bb0e37ed48720a5371ce' // browser API key from Amplitude project settings
 
-const PRODUCTION_HOST = 'dadashi44.github.io'
+const PRODUCTION_HOST = 'vue-llm.js.org'
 const CONSENT_KEY = 'vue-llm:analytics-consent'
 
 export type Consent = 'granted' | 'denied'
@@ -30,7 +30,7 @@ let amplitudeLoading: Promise<void> | undefined
 const amplitudeQueue: [string, Props][] = []
 
 // Local dev and previews would only pollute the numbers
-const isProduction = (): boolean => typeof window !== 'undefined' && location.hostname === PRODUCTION_HOST
+export const isProduction = (): boolean => typeof window !== 'undefined' && location.hostname === PRODUCTION_HOST
 
 export function getConsent(): Consent | null {
   try {
