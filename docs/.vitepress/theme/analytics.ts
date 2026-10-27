@@ -71,7 +71,8 @@ function loadAmplitude(): Promise<void> {
   if (!AMPLITUDE_API_KEY || !isProduction()) return Promise.resolve()
   amplitudeLoading ??= import('@amplitude/analytics-browser').then((sdk) => {
     amplitude = sdk
-    sdk.init(AMPLITUDE_API_KEY, { autocapture: false })
+    // The Amplitude project lives in the EU data center
+    sdk.init(AMPLITUDE_API_KEY, { autocapture: false, serverZone: 'EU' })
     trackPageView()
     for (const [name, props] of amplitudeQueue.splice(0)) sdk.track(name, props)
   })
