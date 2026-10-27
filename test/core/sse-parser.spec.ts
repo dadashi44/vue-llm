@@ -85,4 +85,34 @@ describe('SSEParserStream', () => {
     expect(events[0].data).toBe('hello')
     expect(events[1].data).toBe('world')
   })
+
+  describe('chunk boundaries', () => {
+    async function parseChunks(chunks: string[]) {
+      const events: unknown[] = []
+      const stream = new ReadableStream<string>({
+        start(controller) {
+          for (const c of chunks) controller.enqueue(c)
+          controller.close()
+        },
+      }).pipeThrough(new SSEParserStream())
+      const reader = stream.getReader()
+      for (let r = await reader.read(); !r.done; r = await reader.read()) events.push(r.value)
+      return events
+    }
+
+    it('keeps the event name when event and data arrive in different chunks', async () => {
+      const events = await parseChunks(['event: content_block_start\n', 'data: {"a":1}\n', '\n'])
+      expect(events).toEqual([{ event: 'content_block_start', data: '{"a":1}', id: undefined, retry: undefined }])
+    })
+
+    it('handles CRLF, including a CRLF split across chunks', async () => {
+      const events = await parseChunks(['event: x\r', '\ndata: 1\r\n\r', '\nevent: y\r\ndata: 2\r\n\r\n'])
+      expect(events).toMatchObject([{ event: 'x', data: '1' }, { event: 'y', data: '2' }])
+    })
+
+    it('dispatches the last event even without a trailing blank line', async () => {
+      const events = await parseChunks(['data: last'])
+      expect(events).toMatchObject([{ data: 'last' }])
+    })
+  })
 })
