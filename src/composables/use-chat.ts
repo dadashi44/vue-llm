@@ -1,4 +1,5 @@
-import { computed, type MaybeRef, type MaybeRefOrGetter, onScopeDispose, ref, type Ref, toValue, watch } from 'vue'
+import { computed, getCurrentScope, onScopeDispose, ref, type Ref, watch } from 'vue'
+import { type MaybeRef, type MaybeRefOrGetter, toValue } from '../utils/vue'
 import type { ChatStatus, FinishReason, ToolDefinition, UIMessage, UIMessagePart, Usage } from '../types'
 import type { ChatMessage, ContentPart, LLMProvider } from '../providers/types'
 import { StreamProcessor } from '../core/stream-processor'
@@ -301,9 +302,11 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     }
   }
 
-  onScopeDispose(() => {
-    abortController?.abort()
-  })
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      abortController?.abort()
+    })
+  }
 
   return {
     messages,

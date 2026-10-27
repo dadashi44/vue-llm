@@ -4,6 +4,10 @@
 import { StreamMarkdown } from 'vue-llm/components'
 ```
 
+::: info
+Components require Vue 3. On Vue 2.7 use `renderMarkdown` with `v-html` — it is plain TypeScript.
+:::
+
 ## StreamMarkdown
 
 Renders Markdown from the model while it streams, with a blinking cursor.

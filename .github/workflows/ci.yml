@@ -45,6 +45,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: npm run test:vue2
 
   build:
     name: Build

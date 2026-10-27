@@ -18,7 +18,18 @@ yarn add vue-llm
 
 :::
 
-`vue` (>= 3.3) is the only peer dependency. The package has zero runtime dependencies.
+`vue` is the only peer dependency; the package has zero runtime dependencies.
+
+## Vue versions
+
+| | Vue 3.3+ | Vue 2.7 |
+|---|---|---|
+| Composables (`useChat`, `useCompletion`, `useObject`, `usePrompt`) | ✓ | ✓ |
+| Providers, middleware, storage, prompt templates, server | ✓ | ✓ |
+| `vue-llm/components` | ✓ | — |
+| `vue-llm/nuxt` | Nuxt 3/4 | — |
+
+Vue 2.7 is supported through its built-in Composition API — use the composables in `setup()` (Options API components can call them in `setup()` too). The whole test suite runs on both versions in CI. Vue 2.6 and older are not supported; upgrading to 2.7 is a minor update.
 
 ## Entry points
 

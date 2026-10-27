@@ -19,7 +19,7 @@ AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
 - **Streaming** — SSE parser, text/reasoning/tool-call deltas
 - **Security** — `dangerouslyAllowBrowser` guard protects API keys
 - **Nuxt module** — auto-imports, server-side runtime config
-- **Zero runtime deps** — only `vue` as peer dependency
+- **Zero runtime deps** — only `vue` as peer dependency (Vue 3.3+, composables also on Vue 2.7)
 - **TypeScript** — full type safety, exported types
 
 ## Quick Start

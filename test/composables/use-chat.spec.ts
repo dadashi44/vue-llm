@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { nextTick } from 'vue'
+import { effectScope, nextTick } from 'vue'
 import { useChat } from '../../src/composables/use-chat'
 import type { LLMProvider, ChatRequest, ChatStreamChunk } from '../../src/providers/types'
 
@@ -239,5 +239,26 @@ describe('useChat', () => {
       const request = vi.mocked(provider.chat).mock.calls[0][0]
       expect(request.messages[0]).toEqual({ role: 'user', content: 'Hi' })
     })
+  })
+
+  it('aborts the request when its effect scope is disposed', async () => {
+    let signal: AbortSignal | undefined
+    const provider: LLMProvider = {
+      id: 'hang',
+      supportsStreaming: true,
+      validateConfig: vi.fn(),
+      chat: vi.fn(async (request: ChatRequest) => {
+        signal = request.signal
+        return { stream: new ReadableStream<ChatStreamChunk>(), response: new Promise<never>(() => {}) }
+      }),
+    }
+    const scope = effectScope()
+    const chat = scope.run(() => useChat({ provider, model: 'm' }))!
+
+    void chat.sendMessage('hi')
+    await vi.waitFor(() => expect(signal).toBeDefined())
+    scope.stop()
+
+    expect(signal!.aborted).toBe(true)
   })
 })

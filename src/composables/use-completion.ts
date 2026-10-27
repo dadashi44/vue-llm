@@ -1,4 +1,5 @@
-import { computed, type MaybeRefOrGetter, onScopeDispose, ref, type Ref, toValue } from 'vue'
+import { computed, getCurrentScope, onScopeDispose, ref, type Ref } from 'vue'
+import { type MaybeRefOrGetter, toValue } from '../utils/vue'
 import type { ChatStatus, FinishReason, Usage } from '../types'
 import type { LLMProvider } from '../providers/types'
 import { generateId } from '../utils/generate-id'
@@ -122,9 +123,11 @@ export function useCompletion(options: UseCompletionOptions): UseCompletionRetur
 
   const isLoading = computed(() => status.value === 'submitted' || status.value === 'streaming')
 
-  onScopeDispose(() => {
-    abortController?.abort()
-  })
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      abortController?.abort()
+    })
+  }
 
   return {
     completion,

@@ -77,11 +77,12 @@
     "prepublishOnly": "npm run build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "test:vue2": "vitest run --config vitest.vue2.config.ts"
   },
   "peerDependencies": {
     "@nuxt/kit": "^3.0.0 || ^4.0.0",
-    "vue": "^3.3.0"
+    "vue": "^2.7.0 || ^3.3.0"
   },
   "peerDependenciesMeta": {
     "@nuxt/kit": {
@@ -102,6 +103,7 @@
     "vitepress": "^1.6.4",
     "vitest": "^3.2.7",
     "vue": "^3.5.13",
-    "vue-tsc": "^2.2.0"
+    "vue-tsc": "^2.2.0",
+    "vue2": "npm:vue@^2.7.16"
   }
 }
