@@ -53,4 +53,4 @@
 
 ## `vue-llm/components`
 
-[`StreamMarkdown`](/guide/components#streammarkdown).
+[`StreamMarkdown`](/guide/components#streammarkdown), [`renderMarkdown`](/guide/components#security), `renderInline`, `escapeHTML`.

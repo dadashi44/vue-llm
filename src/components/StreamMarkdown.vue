@@ -1,12 +1,18 @@
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue'
+import { renderMarkdown } from '../core/markdown'
+
+const props = defineProps<{
   content: string
   streaming?: boolean
+  render?: (markdown: string) => string
 }>()
+
+const html = computed(() => (props.render ?? renderMarkdown)(props.content))
 </script>
 
 <template>
-  <div class="vue-llm-markdown" v-html="content" />
+  <div class="vue-llm-markdown" v-html="html" />
   <span v-if="streaming" class="vue-llm-cursor" aria-hidden="true">▊</span>
 </template>
 
