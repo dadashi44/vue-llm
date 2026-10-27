@@ -6,8 +6,8 @@
  */
 
 // Public ids, safe to commit
-const UMAMI_WEBSITE_ID = '' // from cloud.umami.is → Websites → Edit
-const AMPLITUDE_API_KEY = '' // browser API key from Amplitude project settings
+const UMAMI_WEBSITE_ID = '105f58da-2a36-4ecb-91b2-8d174c5f9ac3' // from cloud.umami.is → Websites → Edit
+const AMPLITUDE_API_KEY = '24957eb89073bb0e37ed48720a5371ce' // browser API key from Amplitude project settings
 
 const PRODUCTION_HOST = 'dadashi44.github.io'
 const CONSENT_KEY = 'vue-llm:analytics-consent'
@@ -71,7 +71,8 @@ function loadAmplitude(): Promise<void> {
   if (!AMPLITUDE_API_KEY || !isProduction()) return Promise.resolve()
   amplitudeLoading ??= import('@amplitude/analytics-browser').then((sdk) => {
     amplitude = sdk
-    sdk.init(AMPLITUDE_API_KEY, { autocapture: false })
+    // The Amplitude project lives in the EU data center
+    sdk.init(AMPLITUDE_API_KEY, { autocapture: false, serverZone: 'EU' })
     trackPageView()
     for (const [name, props] of amplitudeQueue.splice(0)) sdk.track(name, props)
   })
