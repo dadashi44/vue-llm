@@ -38,10 +38,12 @@ description: 'API reference for vue-llm: composables, providers, middleware, ser
 | [`fileToDataURL(blob)`](/guide/attachments#helpers) | Read a Blob as a data URL |
 | `convertFilesToParts(files)` | Files → `FilePart[]` |
 | [`LLMAPIError`](/guide/retries-rate-limiting#errors) | HTTP error class |
+| [`defineTool(tool)`](/guide/tool-calling) | Typed tool with optional `execute` |
+| [`parsePartialJSON(text)`](/guide/generative-ui#streaming-arguments) | Parse incomplete JSON while it streams |
 
 ### Types
 
-`UIMessage`, `UIMessagePart`, `TextPart`, `ReasoningPart`, `ToolCallPart`, `FilePart`, `SourcePart`, `ToolDefinition`, `ChatStatus`, `FinishReason`, `Usage`, `LLMProvider`, `ChatRequest`, `ChatMessage`, `ContentPart`, `ChatStreamResult`, `ChatStreamChunk`, `ChatResponse`, `Middleware`, `ChatHandler`, `RetryOptions`, `RateLimitOptions`, `ChatStorage`, `WebStorageOptions`, `FileInput`, `SendMessageInput`, `PromptTemplate`, `ChatPromptTemplate`, `ChatPromptMessage`, `PromptOptions`, `PromptInput`, `PromptValue`, `PromptVariables`, `PromptVariableNames`, plus each composable's `Use*Options` / `Use*Return`.
+`UIMessage`, `UIMessagePart`, `TextPart`, `ReasoningPart`, `ToolCallPart`, `FilePart`, `SourcePart`, `ToolDefinition`, `ChatTool`, `ToolCallState`, `ToolExecutionContext`, `ToolComponentProps`, `DeepPartial`, `ChatStatus`, `FinishReason`, `Usage`, `LLMProvider`, `ChatRequest`, `ChatMessage`, `ContentPart`, `ChatStreamResult`, `ChatStreamChunk`, `ChatResponse`, `Middleware`, `ChatHandler`, `RetryOptions`, `RateLimitOptions`, `ChatStorage`, `WebStorageOptions`, `FileInput`, `SendMessageInput`, `PromptTemplate`, `ChatPromptTemplate`, `ChatPromptMessage`, `PromptOptions`, `PromptInput`, `PromptValue`, `PromptVariables`, `PromptVariableNames`, plus each composable's `Use*Options` / `Use*Return`.
 
 ## `vue-llm/providers`
 
@@ -51,10 +53,18 @@ description: 'API reference for vue-llm: composables, providers, middleware, ser
 
 [`createLLMHandler`](/guide/server#createllmhandler) (with [server tools](/guide/server#server-tools)), [`createProxyProvider`](/guide/server#createproxyprovider), [`streamToSSE`](/guide/server#streamtosse).
 
+## `vue-llm/devtools`
+
+[`LLMDevtools`](/guide/devtools): Vue DevTools plugin (requires `@vue/devtools-api`).
+
+## `vue-llm/style.css`
+
+Styles for the components.
+
 ## `vue-llm/nuxt`
 
 [Nuxt module](/guide/nuxt).
 
 ## `vue-llm/components`
 
-[`StreamMarkdown`](/guide/components#streammarkdown), [`renderMarkdown`](/guide/components#security), `renderInline`, `escapeHTML`.
+[`MessageParts`](/guide/components#messageparts), [`StreamMarkdown`](/guide/components#streammarkdown), [`renderMarkdown`](/guide/components#security), `renderInline`, `escapeHTML`.

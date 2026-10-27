@@ -41,6 +41,8 @@ features:
     details: "{{variables}} inferred at the type level, chat templates and reactive usePrompt."
   - title: Any backend
     details: Server-side tools in createLLMHandler, or plug useChat into your existing SSE backend with createSSEProvider.
+  - title: DevTools
+    details: An LLM tab in Vue DevTools with every chat, a request timeline, time to first token, tool calls and token usage.
   - title: Server & Nuxt
     details: Web-standard request handler, proxy provider and a Nuxt module with auto-imports.
 ---

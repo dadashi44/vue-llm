@@ -27,7 +27,7 @@ export class StreamProcessor {
     signal: AbortSignal,
     callbacks: StreamCallbacks,
   ): Promise<{ finishReason: FinishReason; usage?: Usage; toolCalls: { toolCallId: string; toolName: string; args: unknown }[] }> {
-    this.status.value = 'streaming'
+    if (!signal.aborted) this.status.value = 'streaming'
 
     const assistantMsg = this.getOrCreateAssistantMessage()
     const toolCallArgs = new Map<string, string>()

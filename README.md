@@ -25,7 +25,8 @@
 - **Any backend** — server-side tools in `createLLMHandler`, `createSSEProvider` for your own SSE API
 - **Streaming** — SSE parser, text/reasoning/tool-call deltas
 - **Security** — `dangerouslyAllowBrowser` guard protects API keys
-- **Nuxt module** — auto-imports, server-side runtime config
+- **Vue DevTools** — an LLM tab with every chat, request timeline, time to first token, tool calls and token usage (`vue-llm/devtools`)
+- **Nuxt module** — auto-imports, components, DevTools in development, server-side runtime config
 - **Zero runtime deps** — only `vue` as peer dependency (Vue 3.3+, composables also on Vue 2.7)
 - **TypeScript** — full type safety, exported types
 

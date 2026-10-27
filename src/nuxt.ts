@@ -1,4 +1,9 @@
-import { addComponent, addImports, createResolver, defineNuxtModule } from '@nuxt/kit'
+import { addComponent, addImports, addPluginTemplate, createResolver, defineNuxtModule, tryResolveModule } from '@nuxt/kit'
+
+export interface ModuleOptions {
+  /** Add the vue-llm inspector and timeline to Vue DevTools in development. Default `true`. */
+  devtools?: boolean
+}
 
 export default defineNuxtModule({
   meta: {
@@ -6,8 +11,12 @@ export default defineNuxtModule({
     configKey: 'vueLlm',
     compatibility: { nuxt: '>=3.5.0' },
   },
-  defaults: {},
-  setup(_options: Record<string, never>, nuxt: { options: { runtimeConfig: Record<string, unknown>; css: string[] } }) {
+  defaults: { devtools: true },
+  // Nuxt's types come from @nuxt/schema, which is not a dependency, so describe what we use
+  async setup(
+    options: ModuleOptions,
+    nuxt: { options: { runtimeConfig: Record<string, unknown>; css: string[]; dev: boolean; modulesDir: string[] } },
+  ) {
     const resolver = createResolver(import.meta.url)
 
     addImports([
@@ -36,10 +45,22 @@ export default defineNuxtModule({
     }
     nuxt.options.css.push(resolver.resolve('./vue-llm.css'))
 
+    if (nuxt.options.dev && options.devtools && await tryResolveModule('@vue/devtools-api', nuxt.options.modulesDir)) {
+      const devtools = resolver.resolve('./devtools')
+      addPluginTemplate({
+        filename: 'vue-llm-devtools.client.mjs',
+        mode: 'client',
+        getContents: () => [
+          `import { LLMDevtools } from ${JSON.stringify(devtools)}`,
+          'export default defineNuxtPlugin(nuxtApp => { nuxtApp.vueApp.use(LLMDevtools) })',
+        ].join('\n'),
+      })
+    }
+
     nuxt.options.runtimeConfig.vueLlm = {
       openaiApiKey: '',
       anthropicApiKey: '',
-      ...nuxt.options.runtimeConfig.vueLlm as Record<string, string>,
+      ...nuxt.options.runtimeConfig.vueLlm as Record<string, string> | undefined,
     }
   },
 })

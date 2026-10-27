@@ -6,6 +6,7 @@ import { StreamProcessor } from '../core/stream-processor'
 import type { ChatStorage } from '../core/storage'
 import { generateId } from '../utils/generate-id'
 import { convertFilesToParts, type FileInput } from '../utils/file'
+import { registerDevtoolsSession, tracedChat } from '../core/devtools'
 
 export type SendMessageInput = string | { text?: string; files?: FileInput }
 
@@ -190,7 +191,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
 
       options.provider.validateConfig()
 
-      const { stream } = await options.provider.chat({
+      const { stream } = await tracedChat(options.provider, {
         model: toValue(options.model),
         messages: chatMessages,
         tools: providerTools,
@@ -199,7 +200,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
           ...options.providerOptions,
           ...toValue(options.body),
         },
-      })
+      }, id)
 
       const result = await processor.processStream(stream, signal, {
         onFinish: options.onFinish,
@@ -259,12 +260,15 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     const controller = new AbortController()
     abortController = controller
 
+    // A newer run owns the status; stop() clears the controller
+    const isCurrent = (): boolean => abortController === controller || abortController === null
+
     try {
       await submitToProvider(controller.signal)
-      if (abortController === controller) status.value = 'ready'
+      if (isCurrent()) status.value = 'ready'
     } catch (err) {
       if (controller.signal.aborted) {
-        if (abortController === controller) status.value = 'ready'
+        if (isCurrent()) status.value = 'ready'
         return
       }
       error.value = err instanceof Error ? err : new Error(String(err))
@@ -331,9 +335,22 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     }
   }
 
+  const unregister = registerDevtoolsSession({
+    id,
+    kind: 'chat',
+    providerId: options.provider.id,
+    getModel: () => toValue(options.model),
+    status,
+    error,
+    messages,
+    stop,
+    clear: () => setMessages([]),
+  })
+
   if (getCurrentScope()) {
     onScopeDispose(() => {
       abortController?.abort()
+      unregister()
     })
   }
 

@@ -4,6 +4,7 @@ import type { ChatStatus, FinishReason, Usage } from '../types'
 import type { LLMProvider } from '../providers/types'
 import { generateId } from '../utils/generate-id'
 import { parsePartialJSON } from '../core/partial-json'
+import { registerDevtoolsSession, tracedChat } from '../core/devtools'
 
 export interface UseObjectOptions<T> {
   id?: string
@@ -62,7 +63,7 @@ export function useObject<T = unknown>(options: UseObjectOptions<T>): UseObjectR
         'Output ONLY the JSON object, no other text.',
       ].filter(Boolean).join('\n\n')
 
-      const { stream } = await options.provider.chat({
+      const { stream } = await tracedChat(options.provider, {
         model: toValue(options.model),
         messages: [
           { role: 'system', content: systemPrompt },
@@ -72,7 +73,7 @@ export function useObject<T = unknown>(options: UseObjectOptions<T>): UseObjectR
         providerOptions: {
           response_format: { type: 'json_object' },
         },
-      })
+      }, id)
 
       status.value = 'streaming'
       const reader = stream.getReader()
@@ -137,9 +138,21 @@ export function useObject<T = unknown>(options: UseObjectOptions<T>): UseObjectR
 
   const isLoading = computed(() => status.value === 'submitted' || status.value === 'streaming')
 
+  const unregister = registerDevtoolsSession({
+    id,
+    kind: 'object',
+    providerId: options.provider.id,
+    getModel: () => toValue(options.model),
+    status,
+    error,
+    output: partialObject,
+    stop,
+  })
+
   if (getCurrentScope()) {
     onScopeDispose(() => {
       abortController?.abort()
+      unregister()
     })
   }
 

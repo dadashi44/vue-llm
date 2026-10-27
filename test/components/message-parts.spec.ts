@@ -1,3 +1,4 @@
+/* eslint-disable vue/one-component-per-file */
 import { describe, it, expect } from 'vitest'
 import { defineComponent, h, type PropType } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
