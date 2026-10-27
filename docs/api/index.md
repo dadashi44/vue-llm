@@ -41,7 +41,7 @@
 
 ## `vue-llm/providers`
 
-[`createOpenAI`](/guide/providers#openai), [`createAnthropic`](/guide/providers#anthropic), [`createGoogle`](/guide/providers#google-gemini), [`createOllama`](/guide/providers#ollama), [`createSSEProvider`](/guide/custom-backends).
+[`createOpenAI`](/guide/providers#openai), [`createAnthropic`](/guide/providers#anthropic), [`createGoogle`](/guide/providers#google-gemini), [`createOllama`](/guide/providers#ollama), [`createSSEProvider`](/guide/custom-backends), [`createWebLLM`](/guide/in-browser), `isWebGPUSupported`.
 
 ## `vue-llm/server`
 

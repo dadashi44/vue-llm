@@ -9,6 +9,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'Playground', link: '/playground' },
       { text: 'API', link: '/api/' },
       { text: 'npm', link: 'https://www.npmjs.com/package/vue-llm' },
     ],
@@ -18,6 +19,7 @@ export default defineConfig({
         items: [
           { text: 'Getting Started', link: '/guide/getting-started' },
           { text: 'Providers', link: '/guide/providers' },
+          { text: 'In-Browser Models', link: '/guide/in-browser' },
           { text: 'Security', link: '/guide/security' },
         ],
       },

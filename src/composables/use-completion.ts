@@ -7,7 +7,7 @@ import { generateId } from '../utils/generate-id'
 export interface UseCompletionOptions {
   id?: string
   provider: LLMProvider
-  model: string
+  model: MaybeRefOrGetter<string>
   system?: MaybeRefOrGetter<string | undefined>
   onFinish?: (completion: string, context: { finishReason: FinishReason; usage?: Usage }) => void
   onError?: (error: Error) => void
@@ -60,7 +60,7 @@ export function useCompletion(options: UseCompletionOptions): UseCompletionRetur
         : [{ role: 'user' as const, content: text }]
 
       const { stream } = await options.provider.chat({
-        model: options.model,
+        model: toValue(options.model),
         messages,
         signal: abortController.signal,
       })

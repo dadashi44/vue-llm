@@ -48,6 +48,19 @@ const remote = createOllama({ baseURL: 'http://gpu-box:11434' })
 
 Ollama needs no API key and can be used directly from the browser.
 
+## In the browser (WebGPU)
+
+```ts
+import { CreateMLCEngine } from '@mlc-ai/web-llm'
+import { createWebLLM } from 'vue-llm/providers'
+
+const ai = createWebLLM({ createEngine: CreateMLCEngine })
+
+useChat({ provider: ai, model: 'Llama-3.2-1B-Instruct-q4f16_1-MLC' })
+```
+
+The model runs on the user's GPU, with no API key or server. See [In-Browser Models](./in-browser).
+
 ## Your own backend
 
 `createSSEProvider` connects to any server that streams Server-Sent Events, mapping its event format to vue-llm chunks. See [Custom Backends](./custom-backends).

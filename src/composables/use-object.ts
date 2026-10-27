@@ -7,7 +7,7 @@ import { generateId } from '../utils/generate-id'
 export interface UseObjectOptions<T> {
   id?: string
   provider: LLMProvider
-  model: string
+  model: MaybeRefOrGetter<string>
   system?: MaybeRefOrGetter<string | undefined>
   schema: Record<string, unknown>
   onFinish?: (object: T, context: { finishReason: FinishReason; usage?: Usage }) => void
@@ -62,7 +62,7 @@ export function useObject<T = unknown>(options: UseObjectOptions<T>): UseObjectR
       ].filter(Boolean).join('\n\n')
 
       const { stream } = await options.provider.chat({
-        model: options.model,
+        model: toValue(options.model),
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: text },

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { effectScope, nextTick } from 'vue'
+import { effectScope, nextTick, ref } from 'vue'
 import { useChat } from '../../src/composables/use-chat'
 import type { LLMProvider, ChatRequest, ChatStreamChunk } from '../../src/providers/types'
 
@@ -260,5 +260,18 @@ describe('useChat', () => {
     scope.stop()
 
     expect(signal!.aborted).toBe(true)
+  })
+
+  it('reads a reactive model on every request', async () => {
+    const provider = createMockProvider([{ type: 'finish', finishReason: 'stop' }])
+    const model = ref('model-a')
+    const { sendMessage } = useChat({ provider, model })
+
+    await sendMessage('one')
+    model.value = 'model-b'
+    await sendMessage('two')
+
+    const models = vi.mocked(provider.chat).mock.calls.map(([request]) => request.model)
+    expect(models).toEqual(['model-a', 'model-b'])
   })
 })
