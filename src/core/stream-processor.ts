@@ -1,12 +1,18 @@
 import type { Ref } from 'vue'
-import type { ChatStatus, UIMessage, UIMessagePart } from '../types'
+import type { ChatStatus, ToolCallPart, UIMessage } from '../types'
 import type { ChatStreamChunk } from '../providers/types'
 import type { FinishReason, Usage } from '../types'
+import { parsePartialJSON } from './partial-json'
 
 export interface StreamCallbacks {
   onFinish?: (message: UIMessage, context: { finishReason: FinishReason; usage?: Usage }) => void
   onError?: (error: Error) => void
-  onToolCall?: (toolCall: { toolCallId: string; toolName: string; args: unknown }) => unknown | Promise<unknown>
+  onToolCall?: (
+    toolCall: { toolCallId: string; toolName: string; args: unknown },
+    context: { signal: AbortSignal },
+  ) => unknown | Promise<unknown>
+  /** Whether `onToolCall` can handle a tool; calls it cannot handle stay `pending` without flashing `running` */
+  canHandleTool?: (toolName: string) => boolean
 }
 
 export class StreamProcessor {
@@ -53,17 +59,25 @@ export class StreamProcessor {
           toolCalls.push(tc)
 
           const part = this.findToolCallPart(assistantMsg, value.toolCallId)
-          if (part) part.args = args
+          if (part) {
+            part.args = args
+            part.state = 'pending'
+          }
 
-          if (callbacks.onToolCall) {
+          if (callbacks.onToolCall && (callbacks.canHandleTool?.(tc.toolName) ?? true)) {
             if (part) part.state = 'running'
             this.triggerReactivity()
 
             try {
-              const result = await callbacks.onToolCall(tc)
-              if (result !== undefined && part) {
-                part.state = 'result'
-                part.result = result
+              const result = await callbacks.onToolCall(tc, { signal })
+              if (part) {
+                // undefined means the result comes later, e.g. from the user via addToolResult
+                if (result === undefined) {
+                  part.state = 'pending'
+                } else {
+                  part.state = 'result'
+                  part.result = result
+                }
                 this.triggerReactivity()
               }
             } catch (e) {
@@ -128,7 +142,8 @@ export class StreamProcessor {
       createdAt: new Date(),
     }
     msgs.push(msg)
-    return msg
+    // Return the reactive proxy, so in-place updates re-render components that receive the message as a prop
+    return msgs[msgs.length - 1]
   }
 
   private applyChunk(msg: UIMessage, chunk: ChatStreamChunk, toolCallArgs: Map<string, string>): void {
@@ -159,17 +174,20 @@ export class StreamProcessor {
           toolCallId: chunk.toolCallId,
           toolName: chunk.toolName,
           args: undefined,
-          state: 'pending',
+          state: 'streaming',
         })
         toolCallArgs.set(chunk.toolCallId, '')
         break
 
-      case 'tool-call-delta':
-        toolCallArgs.set(
-          chunk.toolCallId,
-          (toolCallArgs.get(chunk.toolCallId) ?? '') + chunk.args,
-        )
+      case 'tool-call-delta': {
+        const args = (toolCallArgs.get(chunk.toolCallId) ?? '') + chunk.args
+        toolCallArgs.set(chunk.toolCallId, args)
+        // Expose arguments as they stream so tool UIs can render early
+        const part = this.findToolCallPart(msg, chunk.toolCallId)
+        const partial = parsePartialJSON(args)
+        if (part && partial !== undefined) part.args = partial
         break
+      }
 
       case 'tool-call-end':
       case 'tool-result':
@@ -189,11 +207,8 @@ export class StreamProcessor {
     }
   }
 
-  private findToolCallPart(msg: UIMessage, toolCallId: string) {
-    return msg.parts.find(
-      (p): p is UIMessagePart & { type: 'tool-call' } =>
-        p.type === 'tool-call' && p.toolCallId === toolCallId,
-    ) as (UIMessagePart & { type: 'tool-call'; toolCallId: string; toolName: string; args: unknown; state: string; result?: unknown; error?: string }) | undefined
+  private findToolCallPart(msg: UIMessage, toolCallId: string): ToolCallPart | undefined {
+    return msg.parts.find((p): p is ToolCallPart => p.type === 'tool-call' && p.toolCallId === toolCallId)
   }
 
   private getToolName(msg: UIMessage, toolCallId: string): string {

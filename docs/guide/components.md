@@ -1,12 +1,43 @@
+---
+description: 'MessageParts and StreamMarkdown: Vue components that render streaming LLM messages, safe Markdown, reasoning and tool calls.'
+---
+
 # Components
 
 ```ts
-import { StreamMarkdown } from 'vue-llm/components'
+import { MessageParts, StreamMarkdown } from 'vue-llm/components'
+import 'vue-llm/style.css' // cursor animation and small layout defaults
 ```
+
+The Nuxt module registers both components and the stylesheet for you.
 
 ::: info
 Components require Vue 3. On Vue 2.7 use `renderMarkdown` with `v-html` — it is plain TypeScript.
 :::
+
+## MessageParts
+
+Renders a whole message: Markdown text, collapsible reasoning, images, sources, and tool calls through your own components. See [Generative UI](./generative-ui).
+
+```vue
+<MessageParts
+  v-for="msg in messages"
+  :key="msg.id"
+  :message="msg"
+  :components="{ get_weather: WeatherCard }"
+  @tool-result="addToolResult"
+/>
+```
+
+| Prop / event | Description |
+|------|-------------|
+| `message` | A `UIMessage` |
+| `components` | Tool name → component. It receives `ToolComponentProps` |
+| `render` | Custom Markdown renderer, as in `StreamMarkdown` |
+| `@tool-result` | Fired with `{ toolCallId, result }` when a tool component calls `addResult` |
+| `#tool` slot | Fallback for tools without a component: `{ part, addResult }` |
+
+The root element has `class="vue-llm-message"` and `data-role` set to the message role. Parts use the `vue-llm-text`, `vue-llm-reasoning`, `vue-llm-file` and `vue-llm-source` classes, so you can style them.
 
 ## StreamMarkdown
 

@@ -1,3 +1,7 @@
+---
+description: 'Keep LLM API keys out of the browser: server proxy, dangerouslyAllowBrowser, safe Markdown rendering of model output and rate limiting.'
+---
+
 # Security
 
 Providers that need an API key refuse to run in the browser:

@@ -1,3 +1,7 @@
+---
+description: 'useCompletion: stream a single text completion from an LLM into a Vue ref.'
+---
+
 # useCompletion
 
 Single-turn text generation, streamed into one string.

@@ -1,3 +1,7 @@
+---
+description: 'API reference for vue-llm: composables, providers, middleware, server handler, components and TypeScript types.'
+---
+
 # API Reference
 
 ## `vue-llm`

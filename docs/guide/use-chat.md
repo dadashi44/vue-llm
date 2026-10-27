@@ -1,3 +1,7 @@
+---
+description: 'useChat: a reactive Vue composable for streaming chat with LLMs, with abort, regenerate, attachments, tool calls, persistence and status refs.'
+---
+
 # useChat
 
 Reactive, streaming multi-turn chat.

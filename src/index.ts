@@ -32,6 +32,9 @@ export type { Middleware, ChatHandler, RetryOptions, RateLimitOptions } from './
 
 export { LLMAPIError } from './core/errors'
 
+export { defineTool } from './types'
+export { parsePartialJSON } from './core/partial-json'
+
 export { fileToDataURL, convertFilesToParts } from './utils/file'
 export type { FileInput } from './utils/file'
 
@@ -47,6 +50,11 @@ export type {
   FilePart,
   SourcePart,
   ToolDefinition,
+  ChatTool,
+  ToolCallState,
+  ToolExecutionContext,
+  ToolComponentProps,
+  DeepPartial,
   ChatStatus,
   FinishReason,
   Usage,

@@ -1,3 +1,7 @@
+---
+description: 'createLLMHandler: a web-standard Request/Response handler that proxies LLM calls, runs server-side tools and rate limits per IP. Works in Nuxt, Node, Bun, Deno and edge runtimes.'
+---
+
 # Server & Proxy
 
 `vue-llm/server` turns any provider into a streaming HTTP endpoint and gives the browser a provider that talks to it — API keys never leave the server.

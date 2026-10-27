@@ -1,6 +1,11 @@
 # vue-llm
 
-AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
+[![npm version](https://img.shields.io/npm/v/vue-llm.svg)](https://www.npmjs.com/package/vue-llm)
+[![npm downloads](https://img.shields.io/npm/dm/vue-llm.svg)](https://www.npmjs.com/package/vue-llm)
+[![CI](https://github.com/dadashi44/vue-llm/actions/workflows/ci.yml/badge.svg)](https://github.com/dadashi44/vue-llm/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/vue-llm.svg)](./LICENSE)
+
+**vue-llm** is the AI SDK for Vue and Nuxt: streaming `useChat`, tool calling, Generative UI and in-browser models for OpenAI, Anthropic, Gemini, Ollama and WebGPU.
 
 `useChat()` with streaming, tool calling, multi-provider support — in 10 lines of code.
 
@@ -11,7 +16,8 @@ AI/LLM composables for Vue. The missing AI SDK for the Vue ecosystem.
 - **`useChat()`** — reactive composable with streaming, abort, regenerate
 - **Multi-provider** — OpenAI, Anthropic, Gemini, Ollama out of the box
 - **In-browser models** — run Llama, Qwen or SmolLM on WebGPU with `createWebLLM`, no server or API key
-- **Tool calling** — automatic roundtrips with `onToolCall` handler
+- **Generative UI** — render tool calls as your Vue components with `<MessageParts>`, streamed arguments and human-in-the-loop
+- **Tool calling** — `defineTool` with `execute`, `onToolCall`, `addToolResult`
 - **Attachments** — images, PDFs, audio and text files, mapped per provider
 - **Persistence** — restore chat history from localStorage or any custom backend
 - **Resilience** — retries with exponential backoff, client and server rate limiting

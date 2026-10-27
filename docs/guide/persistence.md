@@ -1,3 +1,7 @@
+---
+description: 'Persist and restore AI chat history in Vue with localStorage, sessionStorage or any async backend through the storage option.'
+---
+
 # Persistence
 
 Pass a `storage` adapter and a stable `id`. History is restored when `useChat` is created and saved whenever a response finishes (not on every streamed token).

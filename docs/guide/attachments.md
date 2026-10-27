@@ -1,3 +1,7 @@
+---
+description: 'Send images, PDFs, audio and text files to OpenAI, Anthropic, Gemini and Ollama from useChat, mapped to each provider format.'
+---
+
 # Attachments
 
 Pass `File`, `FileList` or `FilePart` objects to `sendMessage`. Files are read as data URLs and stored as `file` parts on the user message.

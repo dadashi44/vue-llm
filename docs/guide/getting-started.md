@@ -1,3 +1,7 @@
+---
+description: 'Install vue-llm and build a streaming AI chat in Vue 3 or Nuxt in a few lines with useChat. Supported Vue versions, entry points and the message format.'
+---
+
 # Getting Started
 
 ## Installation
@@ -95,7 +99,7 @@ interface UIMessage {
 type UIMessagePart =
   | { type: 'text'; text: string; state?: 'streaming' | 'done' }
   | { type: 'reasoning'; text: string; state?: 'streaming' | 'done' }
-  | { type: 'tool-call'; toolCallId: string; toolName: string; args: unknown; state: 'pending' | 'running' | 'result' | 'error'; result?: unknown; error?: string }
+  | { type: 'tool-call'; toolCallId: string; toolName: string; args: unknown; state: 'streaming' | 'pending' | 'running' | 'result' | 'error'; result?: unknown; error?: string }
   | { type: 'file'; mediaType: string; url: string; filename?: string }
   | { type: 'source'; url: string; title?: string }
 ```

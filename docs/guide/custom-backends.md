@@ -1,3 +1,7 @@
+---
+description: 'Connect useChat to an existing backend that streams Server-Sent Events with createSSEProvider, mapping your event format to vue-llm chunks.'
+---
+
 # Custom Backends
 
 Many apps already have a backend that talks to the LLM: it stores sessions, injects business context and runs tools against your database. `createSSEProvider` connects `useChat` to such a backend without changing its protocol.
