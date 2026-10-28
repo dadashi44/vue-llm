@@ -37,7 +37,11 @@ export default defineConfig({
   lastUpdated: true,
   sitemap: { hostname: SITE_URL },
   head: [
+    // ICO and PNG for browsers that don't show SVG favicons (Safari), SVG for the rest
+    ['link', { rel: 'icon', href: `${BASE}favicon.ico`, sizes: '48x48' }],
+    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: `${BASE}favicon-32x32.png` }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${BASE}logo.svg` }],
+    ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: `${BASE}apple-touch-icon.png` }],
     ['meta', { name: 'theme-color', content: '#42b883' }],
     ['meta', { name: 'keywords', content: structuredData.keywords }],
     ['meta', { property: 'og:type', content: 'website' }],
