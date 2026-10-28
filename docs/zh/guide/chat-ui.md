@@ -25,7 +25,7 @@ description: '开箱即用的 Vue AI 聊天界面：一条命令添加 shadcn-vu
 你需要一个 [shadcn-vue](https://www.shadcn-vue.com/docs/installation) 项目，即需要 Tailwind CSS 和 `lib/utils.ts`。
 
 ```bash
-npx shadcn-vue@latest add https://dadashi44.github.io/vue-llm/r/chat.json
+npx shadcn-vue@latest add https://vue-llm.js.org/r/chat.json
 ```
 
 CLI 会安装 `vue-llm` 和你的图标库（默认为 Lucide；其他图标库会由 CLI 自动映射），并将组件写入 `components/ui/chat/`。

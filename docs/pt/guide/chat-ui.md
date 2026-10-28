@@ -25,7 +25,7 @@ A demo usa um modelo roteirizado. Os componentes são os mesmos que a CLI instal
 Você precisa de um projeto [shadcn-vue](https://www.shadcn-vue.com/docs/installation), ou seja, com Tailwind CSS e `lib/utils.ts`.
 
 ```bash
-npx shadcn-vue@latest add https://dadashi44.github.io/vue-llm/r/chat.json
+npx shadcn-vue@latest add https://vue-llm.js.org/r/chat.json
 ```
 
 A CLI instala o `vue-llm` e a sua biblioteca de ícones (Lucide por padrão; outras bibliotecas de ícones são mapeadas pela CLI) e grava os componentes em `components/ui/chat/`.
