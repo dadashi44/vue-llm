@@ -4,6 +4,14 @@ description: 'vue-llm の Nuxt モジュール：コンポーザブルとプロ�
 
 # Nuxt
 
+Nuxt CLI でモジュールをインストールします：
+
+```bash
+npx nuxi module add vue-llm
+```
+
+手動で追加することもできます。`vue-llm` と `vue-llm/nuxt` のどちらでも動作します：
+
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({

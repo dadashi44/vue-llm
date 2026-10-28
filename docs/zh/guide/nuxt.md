@@ -4,6 +4,14 @@ description: 'vue-llm 的 Nuxt 模块：自动导入组合式函数和提供方�
 
 # Nuxt
 
+使用 Nuxt CLI 安装模块：
+
+```bash
+npx nuxi module add vue-llm
+```
+
+或者手动添加，`vue-llm` 和 `vue-llm/nuxt` 都可以：
+
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({

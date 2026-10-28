@@ -4,6 +4,14 @@ description: 'Módulo Nuxt do vue-llm: composables e provedores com auto-import,
 
 # Nuxt
 
+Instale o módulo com a CLI do Nuxt:
+
+```bash
+npx nuxi module add vue-llm
+```
+
+Ou adicione manualmente; tanto `vue-llm` quanto `vue-llm/nuxt` funcionam:
+
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({

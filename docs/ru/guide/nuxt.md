@@ -4,6 +4,14 @@ description: 'Nuxt-модуль vue-llm: автоимпорт композабл
 
 # Nuxt
 
+Установите модуль через Nuxt CLI:
+
+```bash
+npx nuxi module add vue-llm
+```
+
+Или подключите его вручную, подходят и `vue-llm`, и `vue-llm/nuxt`:
+
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({
