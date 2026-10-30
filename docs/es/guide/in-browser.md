@@ -97,6 +97,21 @@ const chat = useChat({ provider: ai, model })
 model.value = 'Llama-3.2-1B-Instruct-q4f16_1-MLC'
 ```
 
+## Modelos de 16 y 32 bits {#16-bit-and-32-bit-models}
+
+La mayoría de los modelos vienen en dos versiones: `q4f16` (más pequeña y rápida) y `q4f32`. La versión de 16 bits necesita la función `shader-f16` de WebGPU. Sin ella, o con drivers de GPU defectuosos, el modelo carga pero responde con texto sin sentido. Comprueba el adaptador y usa `q4f32` como alternativa:
+
+```ts
+async function pickPrecision(): Promise<'f16' | 'f32'> {
+  const adapter = await navigator.gpu?.requestAdapter()
+  return adapter?.features.has('shader-f16') ? 'f16' : 'f32'
+}
+
+const model = `Llama-3.2-1B-Instruct-q4${await pickPrecision()}_1-MLC`
+```
+
+Si los usuarios siguen viendo texto sin sentido con `q4f16`, ofrece un interruptor a la versión de 32 bits, como hace el [playground](../playground).
+
 ## Elegir un modelo {#choosing-a-model}
 
 | Modelo | Descarga | Notas |

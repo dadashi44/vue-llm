@@ -97,6 +97,21 @@ const chat = useChat({ provider: ai, model })
 model.value = 'Llama-3.2-1B-Instruct-q4f16_1-MLC'
 ```
 
+## 16 ビットと 32 ビットのモデル {#16-bit-and-32-bit-models}
+
+多くのモデルには `q4f16`（小さく高速）と `q4f32` の 2 種類のビルドがあります。16 ビット版には WebGPU の `shader-f16` 機能が必要です。これがない場合や GPU ドライバーに不具合がある場合、モデルは読み込めても意味不明な回答を返します。アダプターを確認して `q4f32` にフォールバックしてください：
+
+```ts
+async function pickPrecision(): Promise<'f16' | 'f32'> {
+  const adapter = await navigator.gpu?.requestAdapter()
+  return adapter?.features.has('shader-f16') ? 'f16' : 'f32'
+}
+
+const model = `Llama-3.2-1B-Instruct-q4${await pickPrecision()}_1-MLC`
+```
+
+それでも `q4f16` で意味不明な回答が出る場合は、[プレイグラウンド](../playground)のように 32 ビット版への切り替えを用意してください。
+
 ## モデルの選び方 {#choosing-a-model}
 
 | モデル | ダウンロード | 備考 |

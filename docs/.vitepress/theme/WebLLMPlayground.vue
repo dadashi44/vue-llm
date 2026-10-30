@@ -6,15 +6,22 @@ import { renderMarkdown } from '../../../src/core/markdown'
 import type { UIMessage } from '../../../src/types'
 import { track } from './analytics'
 
+// Each model ships 16-bit (q4f16) and 32-bit (q4f32) builds. f16 is smaller and faster but needs the
+// WebGPU `shader-f16` feature; without it, or with buggy drivers, f16 models answer with gibberish.
 const MODELS = [
-  { id: 'SmolLM2-360M-Instruct-q4f16_1-MLC', label: 'SmolLM2 360M', size: '~380 MB', note: 'fastest download' },
-  { id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC', label: 'Qwen2.5 0.5B', size: '~950 MB', note: 'good all-rounder' },
-  { id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC', label: 'Llama 3.2 1B', size: '~880 MB', note: 'best answers' },
-  { id: 'Qwen3-0.6B-q4f16_1-MLC', label: 'Qwen3 0.6B', size: '~1.4 GB', note: 'shows its reasoning' },
+  { base: 'SmolLM2-360M-Instruct', label: 'SmolLM2 360M', size: { f16: '~380 MB', f32: '~580 MB' }, note: 'fastest download' },
+  { base: 'Qwen2.5-0.5B-Instruct', label: 'Qwen2.5 0.5B', size: { f16: '~950 MB', f32: '~1.1 GB' }, note: 'good all-rounder' },
+  { base: 'Llama-3.2-1B-Instruct', label: 'Llama 3.2 1B', size: { f16: '~880 MB', f32: '~1.1 GB' }, note: 'best answers' },
+  { base: 'Qwen3-0.6B', label: 'Qwen3 0.6B', size: { f16: '~1.4 GB', f32: '~1.9 GB' }, note: 'shows its reasoning' },
 ]
 
 const supported = isWebGPUSupported()
-const model = ref(MODELS[0].id)
+const baseModel = ref(MODELS[0].base)
+// Unknown until the adapter is checked; 32-bit is the safe default
+const f16Supported = ref(false)
+const force32 = ref(false)
+const precision = computed<'f16' | 'f32'>(() => (f16Supported.value && !force32.value ? 'f16' : 'f32'))
+const model = computed(() => `${baseModel.value}-q4${precision.value}_1-MLC`)
 const loadState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 const progress = ref(0)
 const progressText = ref('')
@@ -68,7 +75,7 @@ const { messages, input, status, error, sendMessage, stop, setMessages } = useCh
 })
 
 const busy = computed(() => status.value === 'submitted' || status.value === 'streaming')
-const selected = computed(() => MODELS.find(m => m.id === model.value)!)
+const selected = computed(() => MODELS.find(m => m.base === baseModel.value)!)
 
 async function load(): Promise<void> {
   loadState.value = 'loading'
@@ -79,11 +86,11 @@ async function load(): Promise<void> {
   try {
     await getProvider().load(model.value)
     loadState.value = 'ready'
-    track('playground_model_loaded', { model: model.value, seconds: seconds() })
+    track('playground_model_loaded', { model: model.value, precision: precision.value, seconds: seconds() })
   } catch (e) {
     loadState.value = 'error'
     loadError.value = e instanceof Error ? e.message : String(e)
-    track('playground_model_failed', { model: model.value, seconds: seconds(), error: loadError.value.slice(0, 120) })
+    track('playground_model_failed', { model: model.value, precision: precision.value, seconds: seconds(), error: loadError.value.slice(0, 120) })
   }
 }
 
@@ -124,8 +131,19 @@ watch(
 
 const suggestions = ['Explain Vue reactivity in two sentences', 'Write a haiku about TypeScript', 'What is WebGPU?']
 
+async function detectF16(): Promise<void> {
+  try {
+    const gpu = (navigator as Navigator & { gpu?: { requestAdapter: () => Promise<{ features: Set<string> } | null> } }).gpu
+    const adapter = await gpu?.requestAdapter()
+    f16Supported.value = !!adapter?.features.has('shader-f16')
+  } catch {
+    f16Supported.value = false
+  }
+}
+
 onMounted(() => {
   if (!supported) track('playground_unsupported', { userAgent: navigator.userAgent.slice(0, 120) })
+  else void detectF16()
 })
 
 onBeforeUnmount(() => {
@@ -143,16 +161,22 @@ onBeforeUnmount(() => {
 
     <template v-else>
       <div class="toolbar">
-        <select v-model="model" :disabled="loadState === 'loading' || busy" aria-label="Model">
-          <option v-for="m in MODELS" :key="m.id" :value="m.id">
-            {{ m.label }} · {{ m.size }} · {{ m.note }}
+        <select v-model="baseModel" :disabled="loadState === 'loading' || busy" aria-label="Model">
+          <option v-for="m in MODELS" :key="m.base" :value="m.base">
+            {{ m.label }} · {{ m.size[precision] }} · {{ m.note }}
           </option>
         </select>
         <button v-if="loadState === 'idle' || loadState === 'error'" class="primary" @click="load">
-          Load model ({{ selected.size }})
+          Load model ({{ selected.size[precision] }})
         </button>
         <span v-else-if="loadState === 'ready'" class="badge">Running on your GPU</span>
       </div>
+
+      <label class="precision">
+        <input v-model="force32" type="checkbox" :disabled="!f16Supported || loadState === 'loading' || busy">
+        <span v-if="f16Supported">32-bit mode — turn on if answers look like gibberish (larger download)</span>
+        <span v-else>Using 32-bit models: this GPU has no 16-bit shader support</span>
+      </label>
 
       <div v-if="loadState === 'loading'" class="progress">
         <!-- WebLLM reports progress per finished shard, so animate until the first one lands -->
@@ -297,6 +321,20 @@ button.link {
   background: none;
   padding: 0;
   color: var(--vp-c-brand-1);
+}
+
+.precision {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--vp-c-text-2);
+  cursor: pointer;
+}
+
+.precision input:disabled {
+  cursor: default;
 }
 
 .badge {

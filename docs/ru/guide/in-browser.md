@@ -97,6 +97,21 @@ const chat = useChat({ provider: ai, model })
 model.value = 'Llama-3.2-1B-Instruct-q4f16_1-MLC'
 ```
 
+## 16-битные и 32-битные модели {#16-bit-and-32-bit-models}
+
+Большинство моделей есть в двух сборках: `q4f16` (меньше и быстрее) и `q4f32`. Для 16-битной нужна возможность WebGPU `shader-f16`. Без неё или с кривыми драйверами видеокарты модель загружается, но отвечает бессмыслицей. Проверьте адаптер и откатывайтесь на `q4f32`:
+
+```ts
+async function pickPrecision(): Promise<'f16' | 'f32'> {
+  const adapter = await navigator.gpu?.requestAdapter()
+  return adapter?.features.has('shader-f16') ? 'f16' : 'f32'
+}
+
+const model = `Llama-3.2-1B-Instruct-q4${await pickPrecision()}_1-MLC`
+```
+
+Если у пользователей всё равно бессмыслица на `q4f16`, дайте переключатель на 32-битную сборку, как в [песочнице](../playground).
+
 ## Выбор модели {#choosing-a-model}
 
 | Модель | Размер | Примечания |

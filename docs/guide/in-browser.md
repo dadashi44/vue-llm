@@ -97,6 +97,21 @@ const chat = useChat({ provider: ai, model })
 model.value = 'Llama-3.2-1B-Instruct-q4f16_1-MLC'
 ```
 
+## 16-bit and 32-bit models
+
+Most models come in two builds: `q4f16` (smaller and faster) and `q4f32`. The 16-bit build needs the WebGPU `shader-f16` feature. Without it, or with buggy GPU drivers, the model loads fine but answers with gibberish. Check the adapter and fall back to `q4f32`:
+
+```ts
+async function pickPrecision(): Promise<'f16' | 'f32'> {
+  const adapter = await navigator.gpu?.requestAdapter()
+  return adapter?.features.has('shader-f16') ? 'f16' : 'f32'
+}
+
+const model = `Llama-3.2-1B-Instruct-q4${await pickPrecision()}_1-MLC`
+```
+
+If users still see gibberish on `q4f16`, offer a switch to the 32-bit build, like the [playground](../playground) does.
+
 ## Choosing a model
 
 | Model | Download | Notes |

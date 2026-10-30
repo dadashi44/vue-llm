@@ -97,6 +97,21 @@ const chat = useChat({ provider: ai, model })
 model.value = 'Llama-3.2-1B-Instruct-q4f16_1-MLC'
 ```
 
+## 16 位与 32 位模型 {#16-bit-and-32-bit-models}
+
+大多数模型提供两种构建：`q4f16`（更小、更快）和 `q4f32`。16 位构建需要 WebGPU 的 `shader-f16` 特性。如果不支持，或显卡驱动有问题，模型虽然能加载，但会输出乱码。请检查适配器，并回退到 `q4f32`：
+
+```ts
+async function pickPrecision(): Promise<'f16' | 'f32'> {
+  const adapter = await navigator.gpu?.requestAdapter()
+  return adapter?.features.has('shader-f16') ? 'f16' : 'f32'
+}
+
+const model = `Llama-3.2-1B-Instruct-q4${await pickPrecision()}_1-MLC`
+```
+
+如果用户在 `q4f16` 下仍然看到乱码，可以像[在线体验](../playground)那样提供切换到 32 位构建的开关。
+
 ## 选择模型 {#choosing-a-model}
 
 | 模型 | 下载大小 | 备注 |
