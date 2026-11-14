@@ -61,4 +61,22 @@ describe('createOpenAI', () => {
       { type: 'finish', finishReason: 'tool-calls', usage: undefined },
     ])
   })
+
+  it('surfaces an error event sent in the middle of the stream', async () => {
+    // OpenAI-compatible gateways report upstream failures after the 200 as a data event with an error object.
+    const body = `data: ${JSON.stringify({ choices: [{ delta: { content: 'Hel' }, finish_reason: null }] })}\n\n`
+      + `data: ${JSON.stringify({ error: { message: 'upstream timed out', type: 'server_error' } })}\n\n`
+      + 'data: [DONE]\n\n'
+    vi.stubGlobal('window', undefined)
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(body, { status: 200 })))
+
+    const provider = createOpenAI({ apiKey: 'test-key' })
+    const { stream } = await provider.chat({ model: 'test-model', messages: [] })
+    const chunks = await drainStream(stream)
+
+    expect(chunks).toEqual([
+      { type: 'text-delta', text: 'Hel' },
+      { type: 'error', error: new Error('[vue-llm] OpenAI stream error: upstream timed out') },
+    ])
+  })
 })
