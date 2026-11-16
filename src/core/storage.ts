@@ -1,4 +1,4 @@
-import type { UIMessage } from '../types'
+import type { UIMessage } from '../types.js'
 
 type MaybePromise<T> = T | Promise<T>
 

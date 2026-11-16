@@ -1,6 +1,6 @@
-import type { ChatMessage } from '../providers/types'
-import type { UIMessage } from '../types'
-import { generateId } from '../utils/generate-id'
+import type { ChatMessage } from '../providers/types.js'
+import type { UIMessage } from '../types.js'
+import { generateId } from '../utils/generate-id.js'
 
 export type PromptValue = string | number | boolean
 

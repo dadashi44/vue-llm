@@ -1,7 +1,7 @@
 import { setupDevtoolsPlugin } from '@vue/devtools-api'
 import { watch, type App, type Plugin } from 'vue'
-import { setDevtoolsBridge, type DevtoolsEvent, type DevtoolsSession } from './core/devtools'
-import type { UIMessage } from './types'
+import { setDevtoolsBridge, type DevtoolsEvent, type DevtoolsSession } from './core/devtools.js'
+import type { UIMessage } from './types.js'
 
 const INSPECTOR_ID = 'vue-llm'
 const TIMELINE_ID = 'vue-llm:requests'

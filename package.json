@@ -90,7 +90,8 @@
   },
   "scripts": {
     "dev": "vite --config playground/vite.config.ts",
-    "build": "vite build && vue-tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "build": "vite build && vue-tsc -p tsconfig.build.json --emitDeclarationOnly && node scripts/fix-dts-vue-imports.mjs",
+    "typecheck:dist": "tsc -p test/types-nodenext",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "vue-tsc --noEmit",

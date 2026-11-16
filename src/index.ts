@@ -1,20 +1,20 @@
-export { useChat } from './composables/use-chat'
-export type { UseChatOptions, UseChatReturn, SendMessageInput } from './composables/use-chat'
+export { useChat } from './composables/use-chat.js'
+export type { UseChatOptions, UseChatReturn, SendMessageInput } from './composables/use-chat.js'
 
-export { useCompletion } from './composables/use-completion'
-export type { UseCompletionOptions, UseCompletionReturn } from './composables/use-completion'
+export { useCompletion } from './composables/use-completion.js'
+export type { UseCompletionOptions, UseCompletionReturn } from './composables/use-completion.js'
 
-export { useObject } from './composables/use-object'
-export type { UseObjectOptions, UseObjectReturn } from './composables/use-object'
+export { useObject } from './composables/use-object.js'
+export type { UseObjectOptions, UseObjectReturn } from './composables/use-object.js'
 
-export { usePrompt } from './composables/use-prompt'
+export { usePrompt } from './composables/use-prompt.js'
 
-export { usePromptInput } from './composables/use-prompt-input'
-export type { UsePromptInputOptions, UsePromptInputReturn, PromptInputChat } from './composables/use-prompt-input'
+export { usePromptInput } from './composables/use-prompt-input.js'
+export type { UsePromptInputOptions, UsePromptInputReturn, PromptInputChat } from './composables/use-prompt-input.js'
 
-export { useAutoScroll } from './composables/use-auto-scroll'
-export type { UseAutoScrollOptions, UseAutoScrollReturn } from './composables/use-auto-scroll'
-export { createPrompt, createChatPrompt, renderTemplate } from './core/prompt'
+export { useAutoScroll } from './composables/use-auto-scroll.js'
+export type { UseAutoScrollOptions, UseAutoScrollReturn } from './composables/use-auto-scroll.js'
+export { createPrompt, createChatPrompt, renderTemplate } from './core/prompt.js'
 export type {
   PromptTemplate,
   ChatPromptTemplate,
@@ -24,7 +24,7 @@ export type {
   PromptValue,
   PromptVariables,
   PromptVariableNames,
-} from './core/prompt'
+} from './core/prompt.js'
 
 export {
   wrapProvider,
@@ -33,19 +33,19 @@ export {
   rateLimitMiddleware,
   headerMiddleware,
   isRetryableError,
-} from './middleware'
-export type { Middleware, ChatHandler, RetryOptions, RateLimitOptions } from './middleware'
+} from './middleware.js'
+export type { Middleware, ChatHandler, RetryOptions, RateLimitOptions } from './middleware.js'
 
-export { LLMAPIError } from './core/errors'
+export { LLMAPIError } from './core/errors.js'
 
-export { defineTool } from './types'
-export { parsePartialJSON } from './core/partial-json'
+export { defineTool } from './types.js'
+export { parsePartialJSON } from './core/partial-json.js'
 
-export { fileToDataURL, convertFilesToParts } from './utils/file'
-export type { FileInput } from './utils/file'
+export { fileToDataURL, convertFilesToParts } from './utils/file.js'
+export type { FileInput } from './utils/file.js'
 
-export { createWebStorage, createMemoryStorage } from './core/storage'
-export type { ChatStorage, WebStorageOptions } from './core/storage'
+export { createWebStorage, createMemoryStorage } from './core/storage.js'
+export type { ChatStorage, WebStorageOptions } from './core/storage.js'
 
 export type {
   UIMessage,
@@ -64,7 +64,7 @@ export type {
   ChatStatus,
   FinishReason,
   Usage,
-} from './types'
+} from './types.js'
 
 export type {
   LLMProvider,
@@ -74,4 +74,4 @@ export type {
   ChatStreamResult,
   ChatStreamChunk,
   ChatResponse,
-} from './providers/types'
+} from './providers/types.js'

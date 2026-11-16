@@ -1,6 +1,6 @@
-import type { LLMProvider, ChatMessage, ChatStreamChunk } from './providers/types'
-import type { ToolDefinition } from './types'
-import { createSSEProvider } from './providers/sse'
+import type { LLMProvider, ChatMessage, ChatStreamChunk } from './providers/types.js'
+import type { ToolDefinition } from './types.js'
+import { createSSEProvider } from './providers/sse.js'
 
 export interface ServerToolDefinition extends ToolDefinition {
   execute?: (args: unknown, context: { request: Request; toolCallId: string }) => unknown | Promise<unknown>

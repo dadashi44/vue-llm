@@ -1,4 +1,4 @@
-import type { FinishReason, ToolDefinition, Usage } from '../types'
+import type { FinishReason, ToolDefinition, Usage } from '../types.js'
 
 export interface LLMProvider {
   readonly id: string

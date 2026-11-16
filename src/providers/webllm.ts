@@ -1,6 +1,6 @@
-import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, ContentPart, LLMProvider } from './types'
-import type { FinishReason, Usage } from '../types'
-import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file'
+import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, ContentPart, LLMProvider } from './types.js'
+import type { FinishReason, Usage } from '../types.js'
+import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file.js'
 
 export interface WebLLMProgress {
   /** 0..1 */

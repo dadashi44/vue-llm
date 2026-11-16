@@ -1,12 +1,12 @@
 import { computed, getCurrentScope, onScopeDispose, ref, type Ref, watch } from 'vue'
-import { type MaybeRef, type MaybeRefOrGetter, toValue } from '../utils/vue'
-import type { ChatStatus, ChatTool, FinishReason, ToolCallPart, UIMessage, UIMessagePart, Usage } from '../types'
-import type { ChatMessage, ContentPart, LLMProvider } from '../providers/types'
-import { StreamProcessor } from '../core/stream-processor'
-import type { ChatStorage } from '../core/storage'
-import { generateId } from '../utils/generate-id'
-import { convertFilesToParts, type FileInput } from '../utils/file'
-import { registerDevtoolsSession, tracedChat } from '../core/devtools'
+import { type MaybeRef, type MaybeRefOrGetter, toValue } from '../utils/vue.js'
+import type { ChatStatus, ChatTool, FinishReason, ToolCallPart, UIMessage, UIMessagePart, Usage } from '../types.js'
+import type { ChatMessage, ContentPart, LLMProvider } from '../providers/types.js'
+import { StreamProcessor } from '../core/stream-processor.js'
+import type { ChatStorage } from '../core/storage.js'
+import { generateId } from '../utils/generate-id.js'
+import { convertFilesToParts, type FileInput } from '../utils/file.js'
+import { registerDevtoolsSession, tracedChat } from '../core/devtools.js'
 
 export type SendMessageInput = string | { text?: string; files?: FileInput }
 

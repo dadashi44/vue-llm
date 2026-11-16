@@ -1,4 +1,4 @@
-import type { FilePart } from '../types'
+import type { FilePart } from '../types.js'
 
 export type FileInput = File | FileList | FilePart | (File | FilePart)[]
 

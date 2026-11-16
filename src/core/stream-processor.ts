@@ -1,8 +1,8 @@
 import type { Ref } from 'vue'
-import type { ChatStatus, ToolCallPart, UIMessage } from '../types'
-import type { ChatStreamChunk } from '../providers/types'
-import type { FinishReason, Usage } from '../types'
-import { parsePartialJSON } from './partial-json'
+import type { ChatStatus, ToolCallPart, UIMessage } from '../types.js'
+import type { ChatStreamChunk } from '../providers/types.js'
+import type { FinishReason, Usage } from '../types.js'
+import { parsePartialJSON } from './partial-json.js'
 
 export interface StreamCallbacks {
   onFinish?: (message: UIMessage, context: { finishReason: FinishReason; usage?: Usage }) => void
