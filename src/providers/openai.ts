@@ -92,6 +92,14 @@ export function createOpenAI(config: OpenAIConfig): LLMProvider {
               return
             }
 
+            if (parsed.error) {
+              controller.enqueue({
+                type: 'error',
+                error: new Error(`[vue-llm] OpenAI stream error: ${parsed.error.message ?? 'unknown'}`),
+              })
+              return
+            }
+
             const choice = parsed.choices?.[0]
             if (!choice) {
               if (parsed.usage) {
@@ -261,4 +269,5 @@ interface OpenAIChatChunk {
     finish_reason?: string
   }[]
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
+  error?: { message?: string }
 }
