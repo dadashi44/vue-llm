@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
-import type { ChatRequest, ChatStreamChunk, ChatStreamResult, LLMProvider } from '../providers/types'
-import type { ChatStatus, UIMessage } from '../types'
+import type { ChatRequest, ChatStreamChunk, ChatStreamResult, LLMProvider } from '../providers/types.js'
+import type { ChatStatus, UIMessage } from '../types.js'
 
 /** A composable instance shown in the devtools inspector */
 export interface DevtoolsSession {

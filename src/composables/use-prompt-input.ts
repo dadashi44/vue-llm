@@ -1,6 +1,6 @@
 import { computed, nextTick, ref, watch, type Ref } from 'vue'
-import type { ChatStatus } from '../types'
-import type { SendMessageInput } from './use-chat'
+import type { ChatStatus } from '../types.js'
+import type { SendMessageInput } from './use-chat.js'
 
 export interface UsePromptInputOptions {
   /** Submit on Enter; Shift+Enter inserts a newline. Default `true`. */

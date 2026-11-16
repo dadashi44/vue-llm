@@ -1,5 +1,5 @@
-import type { ChatRequest, ChatStreamResult, ChatStreamChunk, LLMProvider } from './providers/types'
-import { LLMAPIError } from './core/errors'
+import type { ChatRequest, ChatStreamResult, ChatStreamChunk, LLMProvider } from './providers/types.js'
+import { LLMAPIError } from './core/errors.js'
 
 export type ChatHandler = (request: ChatRequest) => Promise<ChatStreamResult>
 

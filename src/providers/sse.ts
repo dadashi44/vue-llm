@@ -1,6 +1,6 @@
-import type { ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types'
-import { SSEParserStream, type SSEEvent } from '../core/sse-parser'
-import { createAPIError } from '../core/errors'
+import type { ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types.js'
+import { SSEParserStream, type SSEEvent } from '../core/sse-parser.js'
+import { createAPIError } from '../core/errors.js'
 
 type MaybePromise<T> = T | Promise<T>
 

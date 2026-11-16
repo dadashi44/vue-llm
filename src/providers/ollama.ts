@@ -1,6 +1,6 @@
-import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types'
-import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file'
-import { createAPIError } from '../core/errors'
+import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types.js'
+import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file.js'
+import { createAPIError } from '../core/errors.js'
 
 export interface OllamaConfig {
   baseURL?: string

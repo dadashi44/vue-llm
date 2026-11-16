@@ -1,9 +1,9 @@
 import { computed, getCurrentScope, onScopeDispose, ref, type Ref } from 'vue'
-import { type MaybeRefOrGetter, toValue } from '../utils/vue'
-import type { ChatStatus, FinishReason, Usage } from '../types'
-import type { LLMProvider } from '../providers/types'
-import { generateId } from '../utils/generate-id'
-import { registerDevtoolsSession, tracedChat } from '../core/devtools'
+import { type MaybeRefOrGetter, toValue } from '../utils/vue.js'
+import type { ChatStatus, FinishReason, Usage } from '../types.js'
+import type { LLMProvider } from '../providers/types.js'
+import { generateId } from '../utils/generate-id.js'
+import { registerDevtoolsSession, tracedChat } from '../core/devtools.js'
 
 export interface UseCompletionOptions {
   id?: string

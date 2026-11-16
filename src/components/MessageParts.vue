@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import StreamMarkdown from './StreamMarkdown.vue'
-import type { ToolCallPart, UIMessage } from '../types'
+import type { ToolCallPart, UIMessage } from '../types.js'
 
 defineProps<{
   message: UIMessage

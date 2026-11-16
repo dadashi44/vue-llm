@@ -1,7 +1,7 @@
-import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types'
-import { resolveFilePart } from '../utils/file'
-import { isBrowserContext } from '../utils/browser'
-import { createAPIError } from '../core/errors'
+import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, LLMProvider } from './types.js'
+import { resolveFilePart } from '../utils/file.js'
+import { isBrowserContext } from '../utils/browser.js'
+import { createAPIError } from '../core/errors.js'
 
 export interface GoogleConfig {
   apiKey: string

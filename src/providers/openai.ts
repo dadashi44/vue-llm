@@ -1,8 +1,8 @@
-import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, ContentPart, LLMProvider } from './types'
-import { SSEParserStream } from '../core/sse-parser'
-import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file'
-import { isBrowserContext } from '../utils/browser'
-import { createAPIError } from '../core/errors'
+import type { ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ChatStreamResult, ContentPart, LLMProvider } from './types.js'
+import { SSEParserStream } from '../core/sse-parser.js'
+import { decodeBase64Text, isTextMediaType, resolveFilePart } from '../utils/file.js'
+import { isBrowserContext } from '../utils/browser.js'
+import { createAPIError } from '../core/errors.js'
 
 export interface OpenAIConfig {
   apiKey: string
@@ -81,7 +81,7 @@ export function createOpenAI(config: OpenAIConfig): LLMProvider {
       const stream = response.body
         .pipeThrough(new TextDecoderStream())
         .pipeThrough(new SSEParserStream())
-        .pipeThrough(new TransformStream<import('../core/sse-parser').SSEEvent, ChatStreamChunk>({
+        .pipeThrough(new TransformStream<import('../core/sse-parser.js').SSEEvent, ChatStreamChunk>({
           transform(event, controller) {
             if (event.data === '[DONE]') return
 

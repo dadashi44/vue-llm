@@ -1,6 +1,6 @@
 import { computed, type ComputedRef } from 'vue'
-import { type MaybeRefOrGetter, toValue } from '../utils/vue'
-import { createPrompt, type PromptInput, type PromptTemplate, type PromptVariables } from '../core/prompt'
+import { type MaybeRefOrGetter, toValue } from '../utils/vue.js'
+import { createPrompt, type PromptInput, type PromptTemplate, type PromptVariables } from '../core/prompt.js'
 
 export function usePrompt<const T extends string, D = object>(
   template: T | PromptTemplate<T, D>,
