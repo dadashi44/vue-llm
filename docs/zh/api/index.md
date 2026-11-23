@@ -60,6 +60,10 @@ description: 'vue-llm API 参考：组合式函数、提供方、中间件、服
 
 [`createLLMHandler`](/zh/guide/server#createllmhandler)（含 [服务端工具](/zh/guide/server#server-tools)）、[`createProxyProvider`](/zh/guide/server#createproxyprovider)、[`streamToSSE`](/zh/guide/server#streamtosse)。
 
+## `vue-llm/mcp`
+
+[`mcpTools`](/zh/guide/mcp)：将 MCP 服务器的工具用于 `useChat` 和 `createLLMHandler`（配合 `@modelcontextprotocol/sdk` 使用）。
+
 ## `vue-llm/devtools`
 
 [`LLMDevtools`](/zh/guide/devtools)：Vue DevTools 插件（需要 `@vue/devtools-api`）。

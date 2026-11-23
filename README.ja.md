@@ -28,6 +28,7 @@
 - **ストリーミング** — SSE パーサー、テキスト・推論・ツール呼び出しの差分
 - **セキュリティ** — `dangerouslyAllowBrowser` ガードで API キーを保護
 - **チャット UI** — 自分で所有できる完全なチャット：`npx shadcn-vue add https://vue-llm.js.org/r/chat.json`。ヘッドレスな `usePromptInput` と `useAutoScroll` も利用可能
+- **MCP** — 任意の MCP サーバーのツール（検索、ファイル、GitHub、データベース）を `useChat` とサーバーで利用（`vue-llm/mcp`）
 - **Vue DevTools** — すべてのチャット、リクエストのタイムライン、最初のトークンまでの時間、ツール呼び出し、トークン使用量を表示する LLM タブ（`vue-llm/devtools`）
 - **Nuxt モジュール** — 自動インポート、コンポーネント、開発時の DevTools、サーバーサイドの runtime config
 - **ランタイム依存ゼロ** — peer dependency は `vue` のみ（Vue 3.3 以降。コンポーザブルは Vue 2.7 でも動作）

@@ -28,6 +28,7 @@
 - **流式处理**：SSE 解析器，文本/推理/工具调用增量
 - **安全**：`dangerouslyAllowBrowser` 保护机制，防止 API key 泄露
 - **聊天界面**：一套完全属于你的聊天界面：`npx shadcn-vue add https://vue-llm.js.org/r/chat.json`，另有无头的 `usePromptInput` 和 `useAutoScroll`
+- **MCP**：在 `useChat` 和服务端使用任意 MCP 服务器的工具（搜索、文件、GitHub、数据库）（`vue-llm/mcp`）
 - **Vue DevTools**：LLM 标签页，展示所有聊天、请求时间线、首 token 时间、工具调用和 token 用量（`vue-llm/devtools`）
 - **Nuxt 模块**：自动导入、组件、开发环境下的 DevTools、服务端运行时配置
 - **零运行时依赖**：唯一的 peer 依赖是 `vue`（Vue 3.3+，组合式函数也支持 Vue 2.7）

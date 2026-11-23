@@ -60,6 +60,10 @@ description: 'Справочник API vue-llm: композаблы, прова
 
 [`createLLMHandler`](/ru/guide/server#createllmhandler) (с [серверными инструментами](/ru/guide/server#server-tools)), [`createProxyProvider`](/ru/guide/server#createproxyprovider), [`streamToSSE`](/ru/guide/server#streamtosse).
 
+## `vue-llm/mcp` {#vue-llm-mcp}
+
+[`mcpTools`](/ru/guide/mcp): инструменты MCP-сервера для `useChat` и `createLLMHandler` (вместе с `@modelcontextprotocol/sdk`).
+
 ## `vue-llm/devtools` {#vue-llm-devtools}
 
 [`LLMDevtools`](/ru/guide/devtools): плагин для Vue DevTools (требует `@vue/devtools-api`).
