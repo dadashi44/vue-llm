@@ -50,7 +50,7 @@ handleSubmit(event)                               // form submit helper
 |--------|------|-------------|
 | `provider` | `LLMProvider` | Instância do provedor (obrigatório) |
 | `model` | `string` | ID do modelo (obrigatório) |
-| `id` | `string` | ID do chat — também é a chave no storage |
+| `id` | `MaybeRefOrGetter<string>` | ID do chat — também é a chave no storage. Um ref [troca de chat](./persistence#switching-chats). |
 | `system` | `MaybeRefOrGetter<string>` | System prompt, relido a cada requisição |
 | `initialMessages` | `UIMessage[]` | Histórico inicial |
 | `body` | `MaybeRef<Record<string, unknown>>` | Opções extras do provedor mescladas em cada requisição |

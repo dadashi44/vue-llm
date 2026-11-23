@@ -50,7 +50,7 @@ handleSubmit(event)                               // form submit helper
 |--------|------|-------------|
 | `provider` | `LLMProvider` | プロバイダーのインスタンス（必須） |
 | `model` | `string` | モデル ID（必須） |
-| `id` | `string` | チャット ID。ストレージのキーにもなる |
+| `id` | `MaybeRefOrGetter<string>` | チャット ID。ストレージのキーにもなる。ref を渡すと[チャットを切り替え](./persistence#switching-chats)られる。 |
 | `system` | `MaybeRefOrGetter<string>` | システムプロンプト。リクエストのたびに読み直される |
 | `initialMessages` | `UIMessage[]` | 初期の履歴 |
 | `body` | `MaybeRef<Record<string, unknown>>` | リクエストごとにマージされる追加のプロバイダーオプション |

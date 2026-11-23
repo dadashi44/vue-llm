@@ -51,3 +51,16 @@ const apiStorage: ChatStorage = {
 ::: warning
 附件以 data URL 的形式存储。大文件可能会超出约 5 MB 的 `localStorage` 配额，文件较多的聊天请使用异步后端。
 :::
+
+## 切换聊天 {#switching-chats}
+
+把 `id` 作为 ref 或 getter 传入，即可用同一个 `useChat` 在多个聊天之间切换：
+
+```ts
+const chatId = ref('support-chat')
+const { messages, isRestored } = useChat({ id: chatId, provider: ai, model: 'gpt-4o', storage })
+
+chatId.value = 'another-chat'
+```
+
+id 变化时，正在进行的回答会停止，`messages` 被清空，并加载新 id 的历史（加载完成前 `isRestored` 为 `false`）。已离开的聊天如果加载较慢，其结果会被忽略。没有 `storage` 时，新聊天从空开始。`chat.id` 返回当前 id。

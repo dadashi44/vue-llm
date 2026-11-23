@@ -50,7 +50,7 @@ handleSubmit(event)                               // form submit helper
 |--------|------|-------------|
 | `provider` | `LLMProvider` | Provider instance (required) |
 | `model` | `string` | Model ID (required) |
-| `id` | `string` | Chat ID — also the storage key |
+| `id` | `MaybeRefOrGetter<string>` | Chat ID — also the storage key. A ref [switches chats](./persistence#switching-chats). |
 | `system` | `MaybeRefOrGetter<string>` | System prompt, re-read on every request |
 | `initialMessages` | `UIMessage[]` | Starting history |
 | `body` | `MaybeRef<Record<string, unknown>>` | Extra provider options merged per request |

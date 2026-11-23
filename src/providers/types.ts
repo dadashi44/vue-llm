@@ -13,7 +13,16 @@ export interface ChatRequest {
   tools?: ToolDefinition[]
   signal?: AbortSignal
   providerOptions?: Record<string, unknown>
+  /**
+   * Why the request is sent: a new user message (`submit`), `regenerate`, or tool results
+   * sent back to the model (`continue`). Lets backends that store history act on it.
+   */
+  trigger?: ChatTrigger
+  /** `submit`: id of the new user message. `regenerate`: id of the assistant message being replaced. */
+  messageId?: string
 }
+
+export type ChatTrigger = 'submit' | 'regenerate' | 'continue'
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
@@ -44,6 +53,8 @@ export interface ChatResponse {
 }
 
 export type ChatStreamChunk =
+  /** Sets the id of the assistant message, e.g. to the id in the backend's database */
+  | { type: 'message-start'; id: string }
   | { type: 'text-delta'; text: string }
   | { type: 'reasoning-delta'; text: string }
   | { type: 'tool-call-start'; toolCallId: string; toolName: string }

@@ -50,7 +50,7 @@ handleSubmit(event)                               // form submit helper
 |--------|------|-------------|
 | `provider` | `LLMProvider` | 提供方实例（必填） |
 | `model` | `string` | 模型 ID（必填） |
-| `id` | `string` | 聊天 ID，同时也是存储的键 |
+| `id` | `MaybeRefOrGetter<string>` | 聊天 ID，同时也是存储的键。传入 ref 可[切换聊天](./persistence#switching-chats)。 |
 | `system` | `MaybeRefOrGetter<string>` | 系统提示词，每次请求时重新读取 |
 | `initialMessages` | `UIMessage[]` | 初始历史记录 |
 | `body` | `MaybeRef<Record<string, unknown>>` | 每次请求时合并的额外提供方选项 |

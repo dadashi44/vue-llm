@@ -45,7 +45,7 @@ const { messages, sendMessage } = useChat({ provider, model: 'default', body: ()
 | `headers` | `HeadersInit \| () => HeadersInit \| Promise<HeadersInit>` | Статические или вычисляемые на каждый запрос (например, свежие токены авторизации) |
 | `credentials` | `RequestCredentials` | Например, `'include'` для авторизации через cookie |
 | `body` | `(request) => unknown` | JSON запроса. По умолчанию `{ messages, model }` |
-| `mapEvent` | `({ event, data, json, id }) => chunk \| chunk[] \| null` | Преобразует одно SSE-событие. По умолчанию считается, что данные уже являются чанком vue-llm |
+| `mapEvent` | `({ event, data, json, id }) => chunk \| chunk[] \| null` | Преобразует одно SSE-событие; через `response` доступны заголовки. По умолчанию считается, что данные уже являются чанком vue-llm |
 | `id` / `name` | `string` | Используются в `LLMAPIError.provider` и в текстах ошибок |
 
 - `json` — это `event.data`, разобранный как JSON (или `undefined`); `data: [DONE]` игнорируется.
@@ -67,6 +67,47 @@ const { messages, sendMessage } = useChat({ provider, model: 'default', body: ()
 ::: tip
 `tool-call-end` приходит раньше `tool-result`, поэтому обработчик `onToolCall` тоже видит серверные вызовы. Для инструментов, которые клиент не обрабатывает, возвращайте `undefined` — их заполнит результат с сервера.
 :::
+
+## Сессии на бэкенде {#sessions-on-the-backend}
+
+Многие бэкенды хранят историю сами (по id сессии или разговора) и ждут только новое сообщение. Каждый запрос несёт то, что для этого нужно бэкенду:
+
+| Поле запроса | Значение |
+|---|---|
+| `trigger` | `'submit'`: новое сообщение пользователя. `'regenerate'`: вызван `regenerate()`. `'continue'`: модели отправляются результаты инструментов. |
+| `messageId` | Для `submit` — id нового сообщения пользователя. Для `regenerate` — id заменяемого ответа ассистента, чтобы бэкенд мог его удалить. |
+
+Чтобы на клиенте были id из вашей базы, начните ответ с чанка `message-start`. Он задаёт id сообщения ассистента, и этот же id придёт бэкенду как `messageId` при `regenerate`.
+
+```ts
+const provider = createSSEProvider({
+  url: req => `/api/sessions/${sessionId.value}/ask`,
+  body: req => ({
+    message: req.messages.at(-1)?.content, // историю хранит бэкенд
+    regenerate: req.trigger === 'regenerate' ? req.messageId : undefined,
+  }),
+  mapEvent: ({ event, json, response }) => {
+    const d = json as any
+    switch (event) {
+      case 'start': return { type: 'message-start', id: d.message_id } // или response.headers.get('X-Message-Id')
+      // …
+    }
+  },
+})
+
+const { messages, sendMessage, regenerate } = useChat({
+  provider,
+  model: 'default',
+  id: sessionId, // ref: при смене загружается эта сессия
+  storage: {
+    load: async id => (await api.getMessages(id)).map(toUIMessage),
+    save: () => {}, // бэкенд сохраняет сам
+    remove: () => {},
+  },
+})
+```
+
+Если передать `id` как ref, можно переключать сессии: текущий ответ останавливается, загружается история новой сессии. См. [Сохранение истории](./persistence#switching-chats).
 
 ## Метаданные сообщения {#message-metadata}
 

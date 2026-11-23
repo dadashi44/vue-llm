@@ -45,7 +45,7 @@ const { messages, sendMessage } = useChat({ provider, model: 'default', body: ()
 | `headers` | `HeadersInit \| () => HeadersInit \| Promise<HeadersInit>` | Static or per-request (e.g. fresh auth tokens) |
 | `credentials` | `RequestCredentials` | e.g. `'include'` for cookie auth |
 | `body` | `(request) => unknown` | Request JSON. Default `{ messages, model }` |
-| `mapEvent` | `({ event, data, json, id }) => chunk \| chunk[] \| null` | Translate one SSE event. Default: the data already is a vue-llm chunk |
+| `mapEvent` | `({ event, data, json, id }) => chunk \| chunk[] \| null` | Translate one SSE event; `response` gives access to headers. Default: the data already is a vue-llm chunk |
 | `id` / `name` | `string` | Used in `LLMAPIError.provider` and error messages |
 
 - `json` is `event.data` parsed as JSON (or `undefined`); `data: [DONE]` is ignored.
@@ -67,6 +67,47 @@ The matching `tool-call` part moves to `result` (or `error`), and `useChat` does
 ::: tip
 `tool-call-end` arrives before `tool-result`, so an `onToolCall` handler also sees server-side calls. Return `undefined` for tools the client doesn't handle — the server result will fill them in.
 :::
+
+## Sessions on the backend
+
+Many backends keep the history themselves (a session or conversation id) and expect only the new message. Every request carries what the backend needs for that:
+
+| Field of the request | Value |
+|---|---|
+| `trigger` | `'submit'`: a new user message. `'regenerate'`: `regenerate()` was called. `'continue'`: tool results are sent back to the model. |
+| `messageId` | For `submit`, the id of the new user message. For `regenerate`, the id of the assistant message being replaced, so the backend can delete it. |
+
+To use your database ids on the client, start the answer with a `message-start` chunk. It sets the id of the assistant message, which then also reaches the backend as `messageId` on `regenerate`.
+
+```ts
+const provider = createSSEProvider({
+  url: req => `/api/sessions/${sessionId.value}/ask`,
+  body: req => ({
+    message: req.messages.at(-1)?.content, // the backend keeps the history
+    regenerate: req.trigger === 'regenerate' ? req.messageId : undefined,
+  }),
+  mapEvent: ({ event, json, response }) => {
+    const d = json as any
+    switch (event) {
+      case 'start': return { type: 'message-start', id: d.message_id } // or response.headers.get('X-Message-Id')
+      // …
+    }
+  },
+})
+
+const { messages, sendMessage, regenerate } = useChat({
+  provider,
+  model: 'default',
+  id: sessionId, // a ref: switching it loads that session
+  storage: {
+    load: async id => (await api.getMessages(id)).map(toUIMessage),
+    save: () => {}, // the backend saves on its own
+    remove: () => {},
+  },
+})
+```
+
+Passing `id` as a ref switches sessions: the running answer stops and the history of the new session loads. See [Persistence](./persistence#switching-chats).
 
 ## Message metadata
 

@@ -45,7 +45,7 @@ const { messages, sendMessage } = useChat({ provider, model: 'default', body: ()
 | `headers` | `HeadersInit \| () => HeadersInit \| Promise<HeadersInit>` | 静态的，或按请求生成（例如获取最新的认证 token） |
 | `credentials` | `RequestCredentials` | 例如使用 cookie 认证时设为 `'include'` |
 | `body` | `(request) => unknown` | 请求 JSON。默认为 `{ messages, model }` |
-| `mapEvent` | `({ event, data, json, id }) => chunk \| chunk[] \| null` | 转换单个 SSE 事件。默认：data 本身就是 vue-llm chunk |
+| `mapEvent` | `({ event, data, json, id }) => chunk \| chunk[] \| null` | 转换单个 SSE 事件；可通过 `response` 读取响应头。默认：data 本身就是 vue-llm chunk |
 | `id` / `name` | `string` | 用于 `LLMAPIError.provider` 和错误信息 |
 
 - `json` 是按 JSON 解析后的 `event.data`（或 `undefined`）；`data: [DONE]` 会被忽略。
@@ -67,6 +67,47 @@ const { messages, sendMessage } = useChat({ provider, model: 'default', body: ()
 ::: tip
 `tool-call-end` 会先于 `tool-result` 到达，因此 `onToolCall` 处理函数也会看到服务端调用。对于客户端不处理的工具返回 `undefined` 即可，服务端结果会将其补全。
 :::
+
+## 后端会话 {#sessions-on-the-backend}
+
+许多后端自己保存历史（按会话 id），只需要新消息。每个请求都会携带后端为此所需的信息：
+
+| 请求字段 | 值 |
+|---|---|
+| `trigger` | `'submit'`：新的用户消息。`'regenerate'`：调用了 `regenerate()`。`'continue'`：把工具结果发回模型。 |
+| `messageId` | `submit` 时为新用户消息的 id。`regenerate` 时为被替换的助手消息的 id，后端可据此删除它。 |
+
+要在客户端使用数据库中的 id，请以 `message-start` chunk 开始回答。它会设置助手消息的 id，`regenerate` 时这个 id 也会作为 `messageId` 发给后端。
+
+```ts
+const provider = createSSEProvider({
+  url: req => `/api/sessions/${sessionId.value}/ask`,
+  body: req => ({
+    message: req.messages.at(-1)?.content, // the backend keeps the history
+    regenerate: req.trigger === 'regenerate' ? req.messageId : undefined,
+  }),
+  mapEvent: ({ event, json, response }) => {
+    const d = json as any
+    switch (event) {
+      case 'start': return { type: 'message-start', id: d.message_id } // or response.headers.get('X-Message-Id')
+      // …
+    }
+  },
+})
+
+const { messages, sendMessage, regenerate } = useChat({
+  provider,
+  model: 'default',
+  id: sessionId, // a ref: switching it loads that session
+  storage: {
+    load: async id => (await api.getMessages(id)).map(toUIMessage),
+    save: () => {}, // the backend saves on its own
+    remove: () => {},
+  },
+})
+```
+
+把 `id` 作为 ref 传入即可切换会话：正在进行的回答会停止，并加载新会话的历史。参见[持久化](./persistence#switching-chats)。
 
 ## 消息元数据 {#message-metadata}
 
