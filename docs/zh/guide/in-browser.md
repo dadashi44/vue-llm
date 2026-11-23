@@ -125,6 +125,7 @@ createWebLLM({ createEngine: CreateMLCEngine, precision: force32.value ? 'f32' :
 | `Qwen2.5-0.5B-Instruct-q4f16_1-MLC` | ~950 MB | 综合表现不错 |
 | `Llama-3.2-1B-Instruct-q4f16_1-MLC` | ~880 MB | 回答质量更好 |
 | `Qwen3-0.6B-q4f16_1-MLC` | ~1.4 GB | 以 `reasoning` part 流式输出推理过程 |
+| `Qwen2.5-3B-Instruct-q4f16_1-MLC` | ~2.5 GB | 其中最聪明，支持多种语言；需要 16 GB 内存或独立显卡 |
 | `Hermes-3-Llama-3.2-3B-q4f16_1-MLC` | ~2.3 GB | 工具调用 |
 | `Phi-3.5-vision-instruct-q4f16_1-MLC` | ~4.5 GB | 图片输入 |
 
