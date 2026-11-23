@@ -125,6 +125,7 @@ createWebLLM({ createEngine: CreateMLCEngine, precision: force32.value ? 'f32' :
 | `Qwen2.5-0.5B-Instruct-q4f16_1-MLC` | ~950 MB | Bom para tudo |
 | `Llama-3.2-1B-Instruct-q4f16_1-MLC` | ~880 MB | Respostas melhores |
 | `Qwen3-0.6B-q4f16_1-MLC` | ~1.4 GB | Faz streaming do raciocínio como partes `reasoning` |
+| `Qwen2.5-3B-Instruct-q4f16_1-MLC` | ~2.5 GB | A mais inteligente destas, muitos idiomas; precisa de 16 GB de RAM ou GPU dedicada |
 | `Hermes-3-Llama-3.2-3B-q4f16_1-MLC` | ~2.3 GB | Chamada de ferramentas |
 | `Phi-3.5-vision-instruct-q4f16_1-MLC` | ~4.5 GB | Entrada de imagens |
 
