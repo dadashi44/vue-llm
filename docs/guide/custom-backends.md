@@ -27,6 +27,7 @@ const provider = createSSEProvider({
         { type: 'tool-call-end', toolCallId: d.id },
       ]
       case 'tool_result': return { type: 'tool-result', toolCallId: d.tool_use_id, result: d.output }
+      case 'final': return { type: 'message-metadata', metadata: d } // summary, chart…
       case 'error': return { type: 'error', error: new Error(d.message) }
       case 'done': return { type: 'finish', finishReason: 'stop' }
     }
@@ -66,6 +67,22 @@ The matching `tool-call` part moves to `result` (or `error`), and `useChat` does
 ::: tip
 `tool-call-end` arrives before `tool-result`, so an `onToolCall` handler also sees server-side calls. Return `undefined` for tools the client doesn't handle — the server result will fill them in.
 :::
+
+## Message metadata
+
+Data that belongs to the answer but isn't text, such as an id in your database, sources, a chart or the cost, goes in a `message-metadata` chunk:
+
+```ts
+{ type: 'message-metadata', metadata: { messageId: 42, summary: '…' } }
+```
+
+`useChat` merges it into `metadata` of the assistant message. Several chunks can arrive during the stream, and a later key replaces an earlier one. Render it like any other field:
+
+```vue
+<ChartFromAi v-if="message.metadata?.chart" :chart="message.metadata.chart" />
+```
+
+The metadata is also in the message passed to `onFinish` and saved with [persistence](./persistence). A `createLLMHandler` stream passes these chunks to `createProxyProvider` unchanged.
 
 ## With vue-llm on the server
 
