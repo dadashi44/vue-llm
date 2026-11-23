@@ -189,6 +189,10 @@ export class StreamProcessor {
         break
       }
 
+      case 'message-start':
+        msg.id = chunk.id
+        break
+
       case 'message-metadata':
         // A new object, so watchers of `metadata` fire and Vue 2 sees the property
         msg.metadata = { ...msg.metadata, ...chunk.metadata }

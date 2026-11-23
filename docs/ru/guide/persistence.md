@@ -51,3 +51,16 @@ const apiStorage: ChatStorage = {
 ::: warning
 Вложения сохраняются как data URL. Большие файлы могут превысить квоту `localStorage` (~5 МБ) — для чатов с большим количеством файлов используйте асинхронное хранилище.
 :::
+
+## Переключение чатов {#switching-chats}
+
+Передайте `id` как ref или геттер, чтобы переключаться между чатами одним `useChat`:
+
+```ts
+const chatId = ref('support-chat')
+const { messages, isRestored } = useChat({ id: chatId, provider: ai, model: 'gpt-4o', storage })
+
+chatId.value = 'another-chat'
+```
+
+При смене id текущий ответ останавливается, `messages` очищается и загружается история нового id (`isRestored` равен `false`, пока загрузка не закончится). Медленная загрузка чата, из которого вы уже ушли, игнорируется. Без `storage` новый чат начинается пустым. `chat.id` возвращает текущий id.

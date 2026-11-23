@@ -69,6 +69,7 @@ export type {
 export type {
   LLMProvider,
   ChatRequest,
+  ChatTrigger,
   ChatMessage,
   ContentPart,
   ChatStreamResult,

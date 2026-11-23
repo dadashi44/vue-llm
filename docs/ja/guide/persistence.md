@@ -51,3 +51,16 @@ const apiStorage: ChatStorage = {
 ::: warning
 添付ファイルは data URL として保存されます。大きなファイルは `localStorage` の上限（約 5 MB）を超えることがあるため、ファイルを多く扱うチャットでは非同期バックエンドを使用してください。
 :::
+
+## チャットの切り替え {#switching-chats}
+
+`id` を ref または getter で渡すと、1 つの `useChat` で複数のチャットを切り替えられます。
+
+```ts
+const chatId = ref('support-chat')
+const { messages, isRestored } = useChat({ id: chatId, provider: ai, model: 'gpt-4o', storage })
+
+chatId.value = 'another-chat'
+```
+
+id が変わると、進行中の回答は停止し、`messages` がクリアされ、新しい id の履歴が読み込まれます（完了するまで `isRestored` は `false`）。すでに離れたチャットの遅い読み込みは無視されます。`storage` がない場合、新しいチャットは空から始まります。`chat.id` は現在の id を返します。

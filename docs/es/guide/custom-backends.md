@@ -45,7 +45,7 @@ const { messages, sendMessage } = useChat({ provider, model: 'default', body: ()
 | `headers` | `HeadersInit \| () => HeadersInit \| Promise<HeadersInit>` | Estáticas o por petición (p. ej., tokens de autenticación renovados) |
 | `credentials` | `RequestCredentials` | P. ej., `'include'` para autenticación con cookies |
 | `body` | `(request) => unknown` | JSON de la petición. Por defecto `{ messages, model }` |
-| `mapEvent` | `({ event, data, json, id }) => chunk \| chunk[] \| null` | Traduce un evento SSE. Por defecto, se asume que los datos ya son un chunk de vue-llm |
+| `mapEvent` | `({ event, data, json, id }) => chunk \| chunk[] \| null` | Traduce un evento SSE; `response` da acceso a las cabeceras. Por defecto, se asume que los datos ya son un chunk de vue-llm |
 | `id` / `name` | `string` | Se usa en `LLMAPIError.provider` y en los mensajes de error |
 
 - `json` es `event.data` parseado como JSON (o `undefined`); `data: [DONE]` se ignora.
@@ -67,6 +67,47 @@ La parte `tool-call` correspondiente pasa a `result` (o `error`) y `useChat` **n
 ::: tip
 `tool-call-end` llega antes que `tool-result`, así que un manejador `onToolCall` también ve las llamadas del servidor. Devuelve `undefined` para las herramientas que el cliente no gestiona: el resultado del servidor las completará.
 :::
+
+## Sesiones en el backend {#sessions-on-the-backend}
+
+Muchos backends guardan el historial por su cuenta (por id de sesión o conversación) y solo esperan el mensaje nuevo. Cada petición lleva lo que el backend necesita para ello:
+
+| Campo de la petición | Valor |
+|---|---|
+| `trigger` | `'submit'`: un mensaje nuevo del usuario. `'regenerate'`: se llamó a `regenerate()`. `'continue'`: se envían al modelo los resultados de herramientas. |
+| `messageId` | En `submit`, el id del nuevo mensaje del usuario. En `regenerate`, el id del mensaje del asistente que se reemplaza, para que el backend pueda borrarlo. |
+
+Para usar los ids de tu base de datos en el cliente, empieza la respuesta con un chunk `message-start`. Define el id del mensaje del asistente, que también llega al backend como `messageId` en `regenerate`.
+
+```ts
+const provider = createSSEProvider({
+  url: req => `/api/sessions/${sessionId.value}/ask`,
+  body: req => ({
+    message: req.messages.at(-1)?.content, // the backend keeps the history
+    regenerate: req.trigger === 'regenerate' ? req.messageId : undefined,
+  }),
+  mapEvent: ({ event, json, response }) => {
+    const d = json as any
+    switch (event) {
+      case 'start': return { type: 'message-start', id: d.message_id } // or response.headers.get('X-Message-Id')
+      // …
+    }
+  },
+})
+
+const { messages, sendMessage, regenerate } = useChat({
+  provider,
+  model: 'default',
+  id: sessionId, // a ref: switching it loads that session
+  storage: {
+    load: async id => (await api.getMessages(id)).map(toUIMessage),
+    save: () => {}, // the backend saves on its own
+    remove: () => {},
+  },
+})
+```
+
+Pasar `id` como ref cambia de sesión: la respuesta en curso se detiene y se carga el historial de la nueva sesión. Consulta [Persistencia](./persistence#switching-chats).
 
 ## Metadatos del mensaje {#message-metadata}
 

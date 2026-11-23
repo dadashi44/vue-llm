@@ -6,6 +6,8 @@ type MaybePromise<T> = T | Promise<T>
 
 export interface SSEProviderEvent extends SSEEvent {
   json: unknown
+  /** The HTTP response, e.g. to read headers such as a message id */
+  response: Response
 }
 
 export interface SSEProviderConfig {
@@ -69,7 +71,7 @@ export function createSSEProvider(config: SSEProviderConfig): LLMProvider {
               json = undefined
             }
 
-            const mapped = mapEvent({ ...event, json })
+            const mapped = mapEvent({ ...event, json, response })
             if (!mapped) return
 
             for (const chunk of Array.isArray(mapped) ? mapped : [mapped]) {

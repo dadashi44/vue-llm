@@ -1,7 +1,7 @@
 import { computed, getCurrentScope, onScopeDispose, ref, type Ref, watch } from 'vue'
 import { type MaybeRef, type MaybeRefOrGetter, toValue } from '../utils/vue.js'
 import type { ChatStatus, ChatTool, FinishReason, ToolCallPart, UIMessage, UIMessagePart, Usage } from '../types.js'
-import type { ChatMessage, ContentPart, LLMProvider } from '../providers/types.js'
+import type { ChatMessage, ChatTrigger, ContentPart, LLMProvider } from '../providers/types.js'
 import { StreamProcessor } from '../core/stream-processor.js'
 import type { ChatStorage } from '../core/storage.js'
 import { generateId } from '../utils/generate-id.js'
@@ -11,7 +11,11 @@ import { registerDevtoolsSession, tracedChat } from '../core/devtools.js'
 export type SendMessageInput = string | { text?: string; files?: FileInput }
 
 export interface UseChatOptions {
-  id?: string
+  /**
+   * Chat id, also the `storage` key. Pass a ref or getter to switch chats: the running
+   * request stops and the history of the new id loads (or the chat starts empty).
+   */
+  id?: MaybeRefOrGetter<string | undefined>
   provider: LLMProvider
   model: MaybeRefOrGetter<string>
   system?: MaybeRefOrGetter<string | undefined>
@@ -34,7 +38,8 @@ export interface UseChatReturn {
   messages: Ref<UIMessage[]>
   status: Ref<ChatStatus>
   error: Ref<Error | undefined>
-  id: string
+  /** The current chat id */
+  readonly id: string
   input: Ref<string>
   sendMessage: (message?: SendMessageInput) => Promise<void>
   regenerate: () => Promise<void>
@@ -49,7 +54,10 @@ export interface UseChatReturn {
 }
 
 export function useChat(options: UseChatOptions): UseChatReturn {
-  const id = options.id ?? generateId()
+  const fallbackId = generateId()
+  const currentId = (): string => toValue(options.id) ?? fallbackId
+  // DevTools shows one session per useChat, even when the chat id changes
+  const devtoolsId = currentId()
   const messages = ref<UIMessage[]>(options.initialMessages ?? []) as Ref<UIMessage[]>
   const status = ref<ChatStatus>('ready') as Ref<ChatStatus>
   const error = ref<Error | undefined>(undefined)
@@ -64,36 +72,44 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     options.onError?.(err instanceof Error ? err : new Error(String(err)))
   }
 
-  if (storage) {
-    const initialMessages = messages.value
-    const applyStored = (stored: UIMessage[] | null | undefined): void => {
-      if (stored?.length && messages.value === initialMessages) {
-        messages.value = stored
-      }
+  // Only the latest load applies, so a slow load of a previous chat can't overwrite the current one
+  let loadToken = 0
+  const restore = (chatId: string): void => {
+    if (!storage) return
+    const token = ++loadToken
+    const before = messages.value
+    isRestored.value = false
+
+    const apply = (stored: UIMessage[] | null | undefined): void => {
+      if (token !== loadToken) return
+      // Keep messages the user added while the history was loading
+      if (stored?.length && messages.value === before) messages.value = stored
+      isRestored.value = true
+    }
+    const fail = (err: unknown): void => {
+      if (token !== loadToken) return
+      reportError(err)
       isRestored.value = true
     }
 
     try {
-      const loaded = storage.load(id)
-      if (loaded instanceof Promise) {
-        loaded.then(applyStored, (err: unknown) => {
-          reportError(err)
-          isRestored.value = true
-        })
-      } else {
-        applyStored(loaded)
-      }
+      const loaded = storage.load(chatId)
+      if (loaded instanceof Promise) loaded.then(apply, fail)
+      else apply(loaded)
     } catch (err) {
-      reportError(err)
-      isRestored.value = true
+      fail(err)
     }
+  }
+
+  if (storage) {
+    restore(currentId())
 
     watch([messages, status, isRestored], () => {
       if (!isRestored.value || status.value === 'submitted' || status.value === 'streaming') return
       try {
         const result = messages.value.length > 0
-          ? storage.save(id, messages.value)
-          : storage.remove(id)
+          ? storage.save(currentId(), messages.value)
+          : storage.remove(currentId())
         if (result instanceof Promise) result.catch(reportError)
       } catch (err) {
         reportError(err)
@@ -182,7 +198,12 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     )
   }
 
-  const submitToProvider = async (signal: AbortSignal): Promise<void> => {
+  interface RunStart {
+    trigger: ChatTrigger
+    messageId?: string
+  }
+
+  const submitToProvider = async (signal: AbortSignal, start: RunStart): Promise<void> => {
     const maxRoundtrips = options.maxToolRoundtrips ?? 5
     let roundtrip = 0
 
@@ -200,7 +221,9 @@ export function useChat(options: UseChatOptions): UseChatReturn {
           ...options.providerOptions,
           ...toValue(options.body),
         },
-      }, id)
+        // Later roundtrips of the same run send tool results back
+        ...(roundtrip === 0 ? start : { trigger: 'continue' as const }),
+      }, devtoolsId)
 
       const result = await processor.processStream(stream, signal, {
         onFinish: options.onFinish,
@@ -249,10 +272,10 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     }
 
     messages.value = [...messages.value, userMessage]
-    await run()
+    await run({ trigger: 'submit', messageId: userMessage.id })
   }
 
-  const run = async (): Promise<void> => {
+  const run = async (start: RunStart): Promise<void> => {
     error.value = undefined
     status.value = 'submitted'
 
@@ -264,7 +287,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     const isCurrent = (): boolean => abortController === controller || abortController === null
 
     try {
-      await submitToProvider(controller.signal)
+      await submitToProvider(controller.signal, start)
       if (isCurrent()) status.value = 'ready'
     } catch (err) {
       if (controller.signal.aborted) {
@@ -281,8 +304,9 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     const lastAssistant = msgs.reduce((acc, m, i) => m.role === 'assistant' ? i : acc, -1)
     if (lastAssistant === -1) return
 
+    const replaced = msgs[lastAssistant].id
     messages.value = msgs.slice(0, lastAssistant)
-    await run()
+    await run({ trigger: 'regenerate', messageId: replaced })
   }
 
   const stop = (): void => {
@@ -324,7 +348,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     const isLatest = last?.role === 'assistant' && last.parts.includes(part)
     const busy = status.value === 'submitted' || status.value === 'streaming'
     if ((options.autoSendToolResults ?? true) && isLatest && !busy && !hasUnresolvedToolCalls()) {
-      await run()
+      await run({ trigger: 'continue' })
     }
   }
 
@@ -335,8 +359,16 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     }
   }
 
+  watch(currentId, (next, prev) => {
+    if (next === prev) return
+    stop()
+    error.value = undefined
+    messages.value = []
+    restore(next)
+  })
+
   const unregister = registerDevtoolsSession({
-    id,
+    id: devtoolsId,
     kind: 'chat',
     providerId: options.provider.id,
     getModel: () => toValue(options.model),
@@ -358,7 +390,9 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     messages,
     status: computed(() => status.value),
     error,
-    id,
+    get id() {
+      return currentId()
+    },
     input,
     sendMessage,
     regenerate,

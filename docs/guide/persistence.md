@@ -51,3 +51,16 @@ Messages sent before the load finishes are kept — stored history never overwri
 ::: warning
 Attachments are stored as data URLs. Large files can exceed the ~5 MB `localStorage` quota — use an async backend for file-heavy chats.
 :::
+
+## Switching chats
+
+Pass `id` as a ref or getter to switch between chats with one `useChat`:
+
+```ts
+const chatId = ref('support-chat')
+const { messages, isRestored } = useChat({ id: chatId, provider: ai, model: 'gpt-4o', storage })
+
+chatId.value = 'another-chat'
+```
+
+When the id changes, the running answer stops, `messages` is cleared and the history of the new id loads (`isRestored` is `false` until it does). A slow load of a chat you have already left is ignored. Without `storage` the new chat starts empty. `chat.id` returns the current id.

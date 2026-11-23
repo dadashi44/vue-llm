@@ -51,3 +51,16 @@ Mensagens enviadas antes de o carregamento terminar são mantidas — o históri
 ::: warning
 Os anexos são salvos como data URLs. Arquivos grandes podem estourar a cota de ~5 MB do `localStorage` — use um backend assíncrono para chats com muitos arquivos.
 :::
+
+## Trocar de chat {#switching-chats}
+
+Passe `id` como ref ou getter para alternar entre chats com um único `useChat`:
+
+```ts
+const chatId = ref('support-chat')
+const { messages, isRestored } = useChat({ id: chatId, provider: ai, model: 'gpt-4o', storage })
+
+chatId.value = 'another-chat'
+```
+
+Quando o id muda, a resposta em andamento para, `messages` é limpo e o histórico do novo id é carregado (`isRestored` fica `false` até terminar). Um carregamento lento de um chat que você já deixou é ignorado. Sem `storage`, o novo chat começa vazio. `chat.id` retorna o id atual.

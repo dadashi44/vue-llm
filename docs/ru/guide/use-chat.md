@@ -50,7 +50,7 @@ handleSubmit(event)                               // хелпер для отп�
 |--------|------|-------------|
 | `provider` | `LLMProvider` | Экземпляр провайдера (обязательна) |
 | `model` | `string` | ID модели (обязательна) |
-| `id` | `string` | ID чата — он же ключ в хранилище |
+| `id` | `MaybeRefOrGetter<string>` | ID чата — он же ключ в хранилище. Ref позволяет [переключать чаты](./persistence#switching-chats). |
 | `system` | `MaybeRefOrGetter<string>` | Системный промпт, перечитывается при каждом запросе |
 | `initialMessages` | `UIMessage[]` | Начальная история |
 | `body` | `MaybeRef<Record<string, unknown>>` | Дополнительные опции провайдера, подмешиваются в каждый запрос |
