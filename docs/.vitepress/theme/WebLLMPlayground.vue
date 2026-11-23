@@ -13,7 +13,12 @@ const MODELS = [
   { base: 'Qwen2.5-0.5B-Instruct', label: 'Qwen2.5 0.5B', size: { f16: '~950 MB', f32: '~1.1 GB' }, note: 'good all-rounder' },
   { base: 'Llama-3.2-1B-Instruct', label: 'Llama 3.2 1B', size: { f16: '~880 MB', f32: '~1.1 GB' }, note: 'best answers' },
   { base: 'Qwen3-0.6B', label: 'Qwen3 0.6B', size: { f16: '~1.4 GB', f32: '~1.9 GB' }, note: 'shows its reasoning' },
+  { base: 'Qwen2.5-3B-Instruct', label: 'Qwen2.5 3B', size: { f16: '~2.5 GB', f32: '~2.9 GB' }, note: 'smartest, needs 16 GB RAM or a discrete GPU' },
 ]
+
+// WebLLM keeps downloads in the Cache API: webllm/model, webllm/wasm and webllm/config
+const CACHE_PREFIX = 'webllm/'
+const modelId = (base: string, p: 'f16' | 'f32'): string => `${base}-q4${p}_1-MLC`
 
 const supported = isWebGPUSupported()
 const baseModel = ref(MODELS[0].base)
@@ -21,7 +26,7 @@ const baseModel = ref(MODELS[0].base)
 const f16Supported = ref(false)
 const force32 = ref(false)
 const precision = computed<'f16' | 'f32'>(() => (f16Supported.value && !force32.value ? 'f16' : 'f32'))
-const model = computed(() => `${baseModel.value}-q4${precision.value}_1-MLC`)
+const model = computed(() => modelId(baseModel.value, precision.value))
 const loadState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 const progress = ref(0)
 const progressText = ref('')
@@ -77,6 +82,53 @@ const { messages, input, status, error, sendMessage, stop, setMessages } = useCh
 const busy = computed(() => status.value === 'submitted' || status.value === 'streaming')
 const selected = computed(() => MODELS.find(m => m.base === baseModel.value)!)
 
+const downloaded = ref(new Set<string>())
+const storageUsed = ref(0)
+const confirmingDelete = ref(false)
+let confirmTimer: ReturnType<typeof setTimeout> | undefined
+
+const formatBytes = (bytes: number): string =>
+  bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1e6))} MB`
+
+async function refreshDownloads(): Promise<void> {
+  if (typeof caches === 'undefined') return
+  try {
+    const ids = new Set<string>()
+    if (await caches.has('webllm/model')) {
+      const urls = (await (await caches.open('webllm/model')).keys()).map(r => r.url)
+      for (const m of MODELS) {
+        for (const p of ['f16', 'f32'] as const) {
+          const id = modelId(m.base, p)
+          if (urls.some(url => url.includes(`/${id}/`))) ids.add(id)
+        }
+      }
+    }
+    downloaded.value = ids
+    storageUsed.value = (await navigator.storage?.estimate?.())?.usage ?? 0
+  } catch {
+    // Storage can be unavailable, e.g. in some private windows
+  }
+}
+
+async function deleteDownloads(): Promise<void> {
+  if (!confirmingDelete.value) {
+    confirmingDelete.value = true
+    clearTimeout(confirmTimer)
+    confirmTimer = setTimeout(() => (confirmingDelete.value = false), 4000)
+    return
+  }
+  confirmingDelete.value = false
+  stop()
+  setMessages([])
+  if (provider.value?.loadedModel) await provider.value.unload().catch(() => {})
+  loadState.value = 'idle'
+  for (const name of await caches.keys()) {
+    if (name.startsWith(CACHE_PREFIX)) await caches.delete(name)
+  }
+  track('playground_models_deleted', { size: formatBytes(storageUsed.value) })
+  await refreshDownloads()
+}
+
 async function load(): Promise<void> {
   loadState.value = 'loading'
   loadError.value = ''
@@ -86,6 +138,7 @@ async function load(): Promise<void> {
   try {
     await getProvider().load(model.value)
     loadState.value = 'ready'
+    void refreshDownloads()
     track('playground_model_loaded', { model: model.value, precision: precision.value, seconds: seconds() })
   } catch (e) {
     loadState.value = 'error'
@@ -95,10 +148,16 @@ async function load(): Promise<void> {
 }
 
 watch(model, () => {
-  if (loadState.value !== 'idle') {
-    stop()
-    setMessages([])
+  if (loadState.value === 'idle') return
+  stop()
+  setMessages([])
+  // Switch right away only to a model that is already downloaded; a new download needs a click
+  if (downloaded.value.has(model.value)) {
     void load()
+  } else {
+    loadState.value = 'idle'
+    loadError.value = ''
+    if (provider.value?.loadedModel) void provider.value.unload().catch(() => {})
   }
 })
 
@@ -134,9 +193,11 @@ const suggestions = ['Explain Vue reactivity in two sentences', 'Write a haiku a
 onMounted(async () => {
   if (!supported) track('playground_unsupported', { userAgent: navigator.userAgent.slice(0, 120) })
   else f16Supported.value = (await detectWebGPUPrecision()) === 'f16'
+  void refreshDownloads()
 })
 
 onBeforeUnmount(() => {
+  clearTimeout(confirmTimer)
   stop()
   worker?.terminate()
 })
@@ -153,11 +214,11 @@ onBeforeUnmount(() => {
       <div class="toolbar">
         <select v-model="baseModel" :disabled="loadState === 'loading' || busy" aria-label="Model">
           <option v-for="m in MODELS" :key="m.base" :value="m.base">
-            {{ m.label }} · {{ m.size[precision] }} · {{ m.note }}
+            {{ m.label }} · {{ downloaded.has(modelId(m.base, precision)) ? 'downloaded' : m.size[precision] }} · {{ m.note }}
           </option>
         </select>
         <button v-if="loadState === 'idle' || loadState === 'error'" class="primary" @click="load">
-          Load model ({{ selected.size[precision] }})
+          {{ downloaded.has(model) ? 'Load model' : `Download and load (${selected.size[precision]})` }}
         </button>
         <span v-else-if="loadState === 'ready'" class="badge">Running on your GPU</span>
       </div>
@@ -167,6 +228,13 @@ onBeforeUnmount(() => {
         <span v-if="f16Supported">32-bit mode — turn on if answers look like gibberish (larger download)</span>
         <span v-else>Using 32-bit models: 16-bit ones don't run reliably on this GPU</span>
       </label>
+
+      <div v-if="downloaded.size" class="downloads">
+        <span>Downloaded models use {{ formatBytes(storageUsed) }} of disk space in this browser.</span>
+        <button class="link" :disabled="loadState === 'loading'" @click="deleteDownloads">
+          {{ confirmingDelete ? 'Click again to delete' : 'Delete' }}
+        </button>
+      </div>
 
       <div v-if="loadState === 'loading'" class="progress">
         <!-- WebLLM reports progress per finished shard, so animate until the first one lands -->
@@ -325,6 +393,20 @@ button.link {
 
 .precision input:disabled {
   cursor: default;
+}
+
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--vp-c-text-2);
+}
+
+.downloads button.link {
+  font-size: 12px;
 }
 
 .badge {
