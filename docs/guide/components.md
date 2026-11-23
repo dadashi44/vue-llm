@@ -38,6 +38,8 @@ Renders a whole message: Markdown text, collapsible reasoning, images, sources, 
 | `render` | Custom Markdown renderer, as in `StreamMarkdown` |
 | `@tool-result` | Fired with `{ toolCallId, result }` when a tool component calls `addResult` |
 | `#tool` slot | Fallback for tools without a component: `{ part, addResult }` |
+| `dataComponents` | [Data part](./generative-ui#data-parts) name → component. It receives `DataComponentProps` |
+| `#data` slot | Fallback for data parts without a component: `{ part }` |
 
 The root element has `class="vue-llm-message"` and `data-role` set to the message role. Parts use the `vue-llm-text`, `vue-llm-reasoning`, `vue-llm-file` and `vue-llm-source` classes, so you can style them.
 

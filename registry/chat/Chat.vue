@@ -10,6 +10,8 @@ const props = withDefaults(defineProps<{
   chat: UseChatReturn
   /** Components that render tool calls, keyed by tool name (Generative UI) */
   components?: Record<string, Component>
+  /** Components that render data parts, keyed by their `name` */
+  dataComponents?: Record<string, Component>
   /** Prompts shown while the chat is empty */
   suggestions?: string[]
   placeholder?: string
@@ -18,6 +20,7 @@ const props = withDefaults(defineProps<{
   class?: string
 }>(), {
   components: undefined,
+  dataComponents: undefined,
   suggestions: () => [],
   placeholder: undefined,
   accept: undefined,
@@ -65,6 +68,7 @@ function send(text: string): void {
           :key="message.id"
           :message="message"
           :components="components"
+          :data-components="dataComponents"
           :is-last="message.id === lastAssistantId"
           :streaming="busy && message.id === lastAssistantId"
           @tool-result="chat.addToolResult"

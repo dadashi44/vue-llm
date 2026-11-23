@@ -147,3 +147,36 @@ parsePartialJSON('{"items":[{"n":"a"},{') // { items: [{ n: 'a' }, {}] }
 ## サーバーサイドのツール {#server-side-tools}
 
 シークレットが必要なツールはサーバーに置きます（[`createLLMHandler` のツール](./server#server-tools)）。その呼び出しも `state: 'result'` の `tool-call` パーツとしてクライアントにストリーミングされるため、同じコンポーネントで描画できます。
+
+## データパーツ {#data-parts}
+
+ツールはモデルが呼び出します。データパーツはバックエンドが送ります。グラフ、表、進捗などを、ストリームで届いた位置の回答内に表示します。
+
+```ts
+// in mapEvent, or emitted by any provider
+{ type: 'data', name: 'chart', data: { kind: 'bar', values: [3, 5] } }
+{ type: 'data', name: 'progress', id: 'sql', data: { step: 'running query' } }
+{ type: 'data', name: 'progress', id: 'sql', data: { step: 'done', rows: 12 } } // updates the part above
+```
+
+```vue
+<script setup lang="ts">
+import type { DataComponentProps } from 'vue-llm'
+
+defineProps<DataComponentProps<{ kind: string; values: number[] }>>()
+</script>
+
+<template>
+  <BarChart :values="data.values" />
+</template>
+```
+
+```vue
+<MessageParts :message="message" :data-components="{ chart: ChartPart, progress: ProgressPart }" />
+```
+
+- `id` 付きの `data` チャンクは、同じ `name` と `id` を持つパーツのデータをその場で置き換えます。進捗やライブの値に使えます。
+- データパーツは UI 用で、モデルには送られません。
+- `MessageParts` は `dataComponents`（`name` ごと。コンポーネントは `name` と `data` を受け取る）または `#data` スロット（`{ part }`）で描画します。独自のテンプレートでは `part.type === 'data'` を確認します。
+
+回答全体にデータを付けるには[メッセージのメタデータ](./custom-backends#message-metadata)を使います。

@@ -61,6 +61,8 @@ export type ChatStreamChunk =
   | { type: 'tool-call-delta'; toolCallId: string; args: string }
   | { type: 'tool-call-end'; toolCallId: string }
   | { type: 'tool-result'; toolCallId: string; result?: unknown; error?: string }
+  /** Adds a data part to the answer, or replaces the data of the part with the same `name` and `id` */
+  | { type: 'data'; name: string; data: unknown; id?: string }
   /** Merged into `metadata` of the assistant message; later keys replace earlier ones */
   | { type: 'message-metadata'; metadata: Record<string, unknown> }
   | { type: 'finish'; finishReason: FinishReason; usage?: Usage }

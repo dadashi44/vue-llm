@@ -38,6 +38,8 @@ Nuxt モジュールを使うと、両方のコンポーネントとスタイル
 | `render` | カスタムの Markdown レンダラー（`StreamMarkdown` と同様） |
 | `@tool-result` | ツールコンポーネントが `addResult` を呼び出したときに `{ toolCallId, result }` とともに発火する |
 | `#tool` スロット | コンポーネントのないツールのフォールバック：`{ part, addResult }` |
+| `dataComponents` | [データパーツ](./generative-ui#data-parts)名 → コンポーネント。コンポーネントは `DataComponentProps` を受け取る |
+| `#data` スロット | コンポーネントのないデータパーツのフォールバック：`{ part }` |
 
 ルート要素には `class="vue-llm-message"` と、メッセージのロールを値とする `data-role` が設定されます。各パーツには `vue-llm-text`、`vue-llm-reasoning`、`vue-llm-file`、`vue-llm-source` クラスが付くので、自由にスタイルを当てられます。
 

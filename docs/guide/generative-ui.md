@@ -147,3 +147,36 @@ parsePartialJSON('{"items":[{"n":"a"},{') // { items: [{ n: 'a' }, {}] }
 ## Server-side tools
 
 Tools that need secrets belong on the server ([`createLLMHandler` tools](./server#server-tools)). Their calls still stream to the client as `tool-call` parts with `state: 'result'`, so the same components render them.
+
+## Data parts
+
+Tools are called by the model. Data parts are sent by your backend: a chart, a table or progress shown inside the answer, at the point in the stream where they arrive.
+
+```ts
+// in mapEvent, or emitted by any provider
+{ type: 'data', name: 'chart', data: { kind: 'bar', values: [3, 5] } }
+{ type: 'data', name: 'progress', id: 'sql', data: { step: 'running query' } }
+{ type: 'data', name: 'progress', id: 'sql', data: { step: 'done', rows: 12 } } // updates the part above
+```
+
+```vue
+<script setup lang="ts">
+import type { DataComponentProps } from 'vue-llm'
+
+defineProps<DataComponentProps<{ kind: string; values: number[] }>>()
+</script>
+
+<template>
+  <BarChart :values="data.values" />
+</template>
+```
+
+```vue
+<MessageParts :message="message" :data-components="{ chart: ChartPart, progress: ProgressPart }" />
+```
+
+- A `data` chunk with an `id` replaces the data of the part with the same `name` and `id`, in place. Use it for progress and live values.
+- Data parts are for the UI and are not sent to the model.
+- `MessageParts` renders them with `dataComponents` (keyed by `name`, the component receives `name` and `data`) or the `#data` slot (`{ part }`). In your own template, check `part.type === 'data'`.
+
+To attach data to the whole answer instead, use [message metadata](./custom-backends#message-metadata).

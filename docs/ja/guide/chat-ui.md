@@ -73,6 +73,7 @@ const chat = useChat({
 |------|------|-------------|
 | `chat` | `UseChatReturn` | `useChat` の戻り値 |
 | `components` | `Record<string, Component>` | ツール名 → コンポーネント |
+| `dataComponents` | `Record<string, Component>` | [データパーツ](./generative-ui#data-parts)名 → コンポーネント |
 | `suggestions` | `string[]` | チャットが空の間に表示するプロンプト |
 | `placeholder` | `string` | 入力欄のプレースホルダー |
 | `accept` | `string \| false` | 受け付ける添付ファイル。`false` で添付ボタンを非表示にする |

@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { ChatStatus, ToolCallPart, UIMessage } from '../types.js'
+import type { ChatStatus, DataPart, ToolCallPart, UIMessage } from '../types.js'
 import type { ChatStreamChunk } from '../providers/types.js'
 import type { FinishReason, Usage } from '../types.js'
 import { parsePartialJSON } from './partial-json.js'
@@ -186,6 +186,20 @@ export class StreamProcessor {
         const part = this.findToolCallPart(msg, chunk.toolCallId)
         const partial = parsePartialJSON(args)
         if (part && partial !== undefined) part.args = partial
+        break
+      }
+
+      case 'data': {
+        const existing = chunk.id === undefined
+          ? undefined
+          : msg.parts.find((p): p is DataPart => p.type === 'data' && p.name === chunk.name && p.id === chunk.id)
+        if (existing) {
+          existing.data = chunk.data
+        } else {
+          const part: DataPart = { type: 'data', name: chunk.name, data: chunk.data }
+          if (chunk.id !== undefined) part.id = chunk.id
+          msg.parts.push(part)
+        }
         break
       }
 

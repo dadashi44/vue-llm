@@ -103,7 +103,7 @@ const echo: LLMProvider = {
 }
 ```
 
-ストリームは `ChatStreamChunk` を出力します。種類は `text-delta`、`reasoning-delta`、`tool-call-start`、`tool-call-delta`、`tool-call-end`、`tool-result`、`message-start`、`message-metadata`、`finish`、`error` です。
+ストリームは `ChatStreamChunk` を出力します。種類は `text-delta`、`reasoning-delta`、`tool-call-start`、`tool-call-delta`、`tool-call-end`、`tool-result`、`data`、`message-start`、`message-metadata`、`finish`、`error` です。
 
 ## エラー {#errors}
 

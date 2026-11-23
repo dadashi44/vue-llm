@@ -60,6 +60,8 @@ export type {
   ToolCallState,
   ToolExecutionContext,
   ToolComponentProps,
+  DataComponentProps,
+  DataPart,
   DeepPartial,
   ChatStatus,
   FinishReason,

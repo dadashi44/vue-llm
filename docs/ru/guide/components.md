@@ -38,6 +38,8 @@ Nuxt-модуль регистрирует оба компонента и таб
 | `render` | Свой рендерер Markdown, как в `StreamMarkdown` |
 | `@tool-result` | Срабатывает с `{ toolCallId, result }`, когда компонент инструмента вызывает `addResult` |
 | Слот `#tool` | Запасной вариант для инструментов без компонента: `{ part, addResult }` |
+| `dataComponents` | Имя [части с данными](./generative-ui#data-parts) → компонент. Компонент получает `DataComponentProps` |
+| Слот `#data` | Запасной вариант для частей с данными без компонента: `{ part }` |
 
 У корневого элемента есть `class="vue-llm-message"` и атрибут `data-role` с ролью сообщения. Части используют классы `vue-llm-text`, `vue-llm-reasoning`, `vue-llm-file` и `vue-llm-source`, так что их можно стилизовать.
 

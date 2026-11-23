@@ -38,6 +38,8 @@ Nuxt 模块会为你自动注册这两个组件和样式表。
 | `render` | 自定义 Markdown 渲染器，与 `StreamMarkdown` 中相同 |
 | `@tool-result` | 当工具组件调用 `addResult` 时触发，参数为 `{ toolCallId, result }` |
 | `#tool` 插槽 | 没有对应组件的工具的后备内容：`{ part, addResult }` |
+| `dataComponents` | [数据部分](./generative-ui#data-parts)名 → 组件。组件会接收 `DataComponentProps` |
+| `#data` 插槽 | 没有对应组件的数据部分的后备内容：`{ part }` |
 
 根元素带有 `class="vue-llm-message"`，并且 `data-role` 设置为消息的角色。各个 part 使用 `vue-llm-text`、`vue-llm-reasoning`、`vue-llm-file` 和 `vue-llm-source` 类名，方便你为它们添加样式。
 

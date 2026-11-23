@@ -12,6 +12,7 @@ export type UIMessagePart =
   | ToolCallPart
   | FilePart
   | SourcePart
+  | DataPart
 
 export interface TextPart {
   type: 'text'
@@ -57,6 +58,17 @@ export interface SourcePart {
   title?: string
 }
 
+/**
+ * Custom data shown in the answer, such as a chart, a table or progress. Not sent to the model.
+ * A later `data` chunk with the same `name` and `id` replaces `data` in place.
+ */
+export interface DataPart<Data = unknown> {
+  type: 'data'
+  name: string
+  data: Data
+  id?: string
+}
+
 export interface ToolDefinition {
   name: string
   description: string
@@ -100,6 +112,12 @@ export interface ToolComponentProps<Args = AnyArgs, Result = AnyArgs> {
   error: string | undefined
   /** Resolve the call from the UI (human-in-the-loop) */
   addResult: (result: Result) => void
+}
+
+/** Props passed to a component rendering a data part, see `dataComponents` */
+export interface DataComponentProps<Data = AnyArgs> {
+  name: string
+  data: Data
 }
 
 export type ChatStatus = 'ready' | 'submitted' | 'streaming' | 'error'

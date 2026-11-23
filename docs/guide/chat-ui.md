@@ -73,6 +73,7 @@ The full chat: message list with auto-scroll, empty state with suggestions, typi
 |------|------|-------------|
 | `chat` | `UseChatReturn` | The return value of `useChat` |
 | `components` | `Record<string, Component>` | Tool name → component |
+| `dataComponents` | `Record<string, Component>` | [Data part](./generative-ui#data-parts) name → component |
 | `suggestions` | `string[]` | Prompts shown while the chat is empty |
 | `placeholder` | `string` | Input placeholder |
 | `accept` | `string \| false` | Accepted attachments; `false` hides the attach button |

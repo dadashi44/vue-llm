@@ -73,6 +73,7 @@ const chat = useChat({
 |------|------|-------------|
 | `chat` | `UseChatReturn` | `useChat` 的返回值 |
 | `components` | `Record<string, Component>` | 工具名 → 组件 |
+| `dataComponents` | `Record<string, Component>` | [数据部分](./generative-ui#data-parts)名 → 组件 |
 | `suggestions` | `string[]` | 聊天为空时显示的提示 |
 | `placeholder` | `string` | 输入框占位文本 |
 | `accept` | `string \| false` | 允许的附件类型；`false` 会隐藏附件按钮 |

@@ -103,7 +103,7 @@ const echo: LLMProvider = {
 }
 ```
 
-The stream emits `ChatStreamChunk`s: `text-delta`, `reasoning-delta`, `tool-call-start`, `tool-call-delta`, `tool-call-end`, `tool-result`, `message-start`, `message-metadata`, `finish` and `error`.
+The stream emits `ChatStreamChunk`s: `text-delta`, `reasoning-delta`, `tool-call-start`, `tool-call-delta`, `tool-call-end`, `tool-result`, `data`, `message-start`, `message-metadata`, `finish` and `error`.
 
 ## Errors
 

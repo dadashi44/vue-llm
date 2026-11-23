@@ -147,3 +147,36 @@ parsePartialJSON('{"items":[{"n":"a"},{') // { items: [{ n: 'a' }, {}] }
 ## 服务端工具 {#server-side-tools}
 
 需要密钥的工具应放在服务端（[`createLLMHandler` 工具](./server#server-tools)）。它们的调用仍会以 `state: 'result'` 的 `tool-call` part 流式传输到客户端，因此同样的组件也能渲染它们。
+
+## 数据部分 {#data-parts}
+
+工具由模型调用，而数据部分由你的后端发送：图表、表格或进度，显示在回答内部、流中到达的位置。
+
+```ts
+// in mapEvent, or emitted by any provider
+{ type: 'data', name: 'chart', data: { kind: 'bar', values: [3, 5] } }
+{ type: 'data', name: 'progress', id: 'sql', data: { step: 'running query' } }
+{ type: 'data', name: 'progress', id: 'sql', data: { step: 'done', rows: 12 } } // updates the part above
+```
+
+```vue
+<script setup lang="ts">
+import type { DataComponentProps } from 'vue-llm'
+
+defineProps<DataComponentProps<{ kind: string; values: number[] }>>()
+</script>
+
+<template>
+  <BarChart :values="data.values" />
+</template>
+```
+
+```vue
+<MessageParts :message="message" :data-components="{ chart: ChartPart, progress: ProgressPart }" />
+```
+
+- 带 `id` 的 `data` chunk 会原地替换 `name` 和 `id` 相同的部分的数据，适用于进度和实时数值。
+- 数据部分只用于界面，不会发送给模型。
+- `MessageParts` 通过 `dataComponents`（按 `name`，组件接收 `name` 和 `data`）或 `#data` 插槽（`{ part }`）渲染它们。在自己的模板中检查 `part.type === 'data'`。
+
+若要把数据附加到整个回答上，请使用[消息元数据](./custom-backends#message-metadata)。
