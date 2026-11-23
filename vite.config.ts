@@ -13,6 +13,7 @@ export default defineConfig({
         nuxt: resolve(__dirname, 'src/nuxt.ts'),
         server: resolve(__dirname, 'src/server.ts'),
         devtools: resolve(__dirname, 'src/devtools.ts'),
+        mcp: resolve(__dirname, 'src/mcp.ts'),
       },
       formats: ['es', 'cjs'],
     },

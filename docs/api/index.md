@@ -60,6 +60,10 @@ description: 'API reference for vue-llm: composables, providers, middleware, ser
 
 [`createLLMHandler`](/guide/server#createllmhandler) (with [server tools](/guide/server#server-tools)), [`createProxyProvider`](/guide/server#createproxyprovider), [`streamToSSE`](/guide/server#streamtosse).
 
+## `vue-llm/mcp`
+
+[`mcpTools`](/guide/mcp): tools of an MCP server for `useChat` and `createLLMHandler` (use with `@modelcontextprotocol/sdk`).
+
 ## `vue-llm/devtools`
 
 [`LLMDevtools`](/guide/devtools): Vue DevTools plugin (requires `@vue/devtools-api`).

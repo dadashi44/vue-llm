@@ -76,6 +76,11 @@
       "import": "./dist/devtools.js",
       "require": "./dist/devtools.cjs"
     },
+    "./mcp": {
+      "types": "./dist/mcp.d.ts",
+      "import": "./dist/mcp.js",
+      "require": "./dist/mcp.cjs"
+    },
     "./style.css": "./dist/vue-llm.css",
     "./package.json": "./package.json"
   },
@@ -125,6 +130,7 @@
     "@eslint/js": "^9.17.0",
     "@lucide/vue": "^1.62.0",
     "@mlc-ai/web-llm": "^0.2.86",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@nuxt/kit": "^3.16.0",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@tailwindcss/vite": "^4.3.3",

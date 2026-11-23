@@ -60,6 +60,10 @@ description: 'vue-llm の API リファレンス：コンポーザブル、プ�
 
 [`createLLMHandler`](/ja/guide/server#createllmhandler)（[サーバーツール](/ja/guide/server#server-tools) を含む）、[`createProxyProvider`](/ja/guide/server#createproxyprovider)、[`streamToSSE`](/ja/guide/server#streamtosse)。
 
+## `vue-llm/mcp`
+
+[`mcpTools`](/ja/guide/mcp)：MCP サーバーのツールを `useChat` と `createLLMHandler` で使う（`@modelcontextprotocol/sdk` と併用）。
+
 ## `vue-llm/devtools`
 
 [`LLMDevtools`](/ja/guide/devtools)：Vue DevTools プラグイン（`@vue/devtools-api` が必要）。

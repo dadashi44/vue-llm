@@ -28,6 +28,7 @@
 - **Streaming** — parser de SSE, deltas de texto/raciocínio/chamadas de ferramentas
 - **Segurança** — a proteção `dangerouslyAllowBrowser` protege as API keys
 - **Chat UI** — um chat completo que é seu: `npx shadcn-vue add https://vue-llm.js.org/r/chat.json`, além dos headless `usePromptInput` e `useAutoScroll`
+- **MCP** — ferramentas de qualquer servidor MCP (busca, arquivos, GitHub, bancos de dados) no `useChat` e no servidor (`vue-llm/mcp`)
 - **Vue DevTools** — uma aba LLM com todos os chats, linha do tempo das requisições, tempo até o primeiro token, chamadas de ferramentas e uso de tokens (`vue-llm/devtools`)
 - **Módulo Nuxt** — auto-imports, componentes, DevTools em desenvolvimento, runtime config no servidor
 - **Zero dependências de runtime** — só `vue` como peer dependency (Vue 3.3+, composables também no Vue 2.7)
