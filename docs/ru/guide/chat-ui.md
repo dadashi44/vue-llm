@@ -73,6 +73,7 @@ const chat = useChat({
 |------|------|-------------|
 | `chat` | `UseChatReturn` | Значение, возвращённое `useChat` |
 | `components` | `Record<string, Component>` | Имя инструмента → компонент |
+| `dataComponents` | `Record<string, Component>` | Имя [части с данными](./generative-ui#data-parts) → компонент |
 | `suggestions` | `string[]` | Подсказки, которые показываются, пока чат пуст |
 | `placeholder` | `string` | Плейсхолдер поля ввода |
 | `accept` | `string \| false` | Допустимые вложения; `false` скрывает кнопку прикрепления |

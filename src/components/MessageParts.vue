@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import StreamMarkdown from './StreamMarkdown.vue'
-import type { ToolCallPart, UIMessage } from '../types.js'
+import type { DataPart, ToolCallPart, UIMessage } from '../types.js'
 
 defineProps<{
   message: UIMessage
   /** Components that render tool calls, keyed by tool name (Generative UI) */
   components?: Record<string, Component>
+  /** Components that render data parts, keyed by their `name` */
+  dataComponents?: Record<string, Component>
   /** Markdown renderer for text parts, see StreamMarkdown */
   render?: (markdown: string) => string
 }>()
@@ -17,7 +19,15 @@ const emit = defineEmits<{
 
 defineSlots<{
   tool?: (props: { part: ToolCallPart; addResult: (result: unknown) => void }) => unknown
+  data?: (props: { part: DataPart }) => unknown
 }>()
+
+// Stable keys keep tool and data components mounted while the message streams
+const partKey = (part: UIMessage['parts'][number], index: number): string | number => {
+  if (part.type === 'tool-call') return part.toolCallId
+  if (part.type === 'data' && part.id !== undefined) return `data:${part.name}:${part.id}`
+  return index
+}
 
 const toolProps = (part: ToolCallPart) => ({
   toolCallId: part.toolCallId,
@@ -32,7 +42,7 @@ const toolProps = (part: ToolCallPart) => ({
 
 <template>
   <div class="vue-llm-message" :data-role="message.role">
-    <template v-for="(part, index) in message.parts" :key="part.type === 'tool-call' ? part.toolCallId : index">
+    <template v-for="(part, index) in message.parts" :key="partKey(part, index)">
       <template v-if="part.type === 'text'">
         <div v-if="message.role === 'user'" class="vue-llm-text">
           {{ part.text }}
@@ -57,6 +67,16 @@ const toolProps = (part: ToolCallPart) => ({
           v-bind="toolProps(part)"
         />
         <slot v-else name="tool" :part="part" :add-result="toolProps(part).addResult" />
+      </template>
+
+      <template v-else-if="part.type === 'data'">
+        <component
+          :is="dataComponents[part.name]"
+          v-if="dataComponents?.[part.name]"
+          :name="part.name"
+          :data="part.data"
+        />
+        <slot v-else name="data" :part="part" />
       </template>
 
       <template v-else-if="part.type === 'file'">

@@ -11,6 +11,8 @@ const props = defineProps<{
   message: UIMessage
   /** Components that render tool calls, keyed by tool name (Generative UI) */
   components?: Record<string, Component>
+  /** Components that render data parts, keyed by their `name` */
+  dataComponents?: Record<string, Component>
   /** Show actions for the latest assistant message */
   isLast?: boolean
   /** The chat is generating this message */
@@ -51,7 +53,7 @@ const toolProps = (part: ToolCallPart) => ({
 
 <template>
   <div :class="cn('group flex w-full flex-col gap-2', isUser ? 'items-end' : 'items-start', props.class)" :data-role="message.role">
-    <template v-for="(part, index) in message.parts" :key="part.type === 'tool-call' ? part.toolCallId : index">
+    <template v-for="(part, index) in message.parts" :key="part.type === 'tool-call' ? part.toolCallId : part.type === 'data' && part.id ? `data:${part.name}:${part.id}` : index">
       <template v-if="part.type === 'text'">
         <div v-if="isUser" class="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-primary px-4 py-2 text-primary-foreground">
           {{ part.text }}
@@ -67,6 +69,13 @@ const toolProps = (part: ToolCallPart) => ({
         <component :is="components[part.toolName]" v-if="components?.[part.toolName]" v-bind="toolProps(part)" />
         <ChatToolCall v-else class="w-full max-w-md" v-bind="toolProps(part)" />
       </template>
+
+      <component
+        :is="dataComponents[part.name]"
+        v-else-if="part.type === 'data' && dataComponents?.[part.name]"
+        :name="part.name"
+        :data="part.data"
+      />
 
       <template v-else-if="part.type === 'file'">
         <img

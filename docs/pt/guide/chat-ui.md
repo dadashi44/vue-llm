@@ -73,6 +73,7 @@ O chat completo: lista de mensagens com auto-scroll, estado vazio com sugestões
 |------|------|-------------|
 | `chat` | `UseChatReturn` | O valor retornado pelo `useChat` |
 | `components` | `Record<string, Component>` | Nome da ferramenta → componente |
+| `dataComponents` | `Record<string, Component>` | Nome da [parte de dados](./generative-ui#data-parts) → componente |
 | `suggestions` | `string[]` | Prompts exibidos enquanto o chat está vazio |
 | `placeholder` | `string` | Placeholder do campo de entrada |
 | `accept` | `string \| false` | Anexos aceitos; `false` esconde o botão de anexar |

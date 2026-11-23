@@ -38,6 +38,8 @@ Renderiza un mensaje completo: texto en Markdown, razonamiento plegable, imágen
 | `render` | Renderizador de Markdown personalizado, como en `StreamMarkdown` |
 | `@tool-result` | Se emite con `{ toolCallId, result }` cuando un componente de herramienta llama a `addResult` |
 | Slot `#tool` | Alternativa para herramientas sin componente: `{ part, addResult }` |
+| `dataComponents` | Nombre de la [parte de datos](./generative-ui#data-parts) → componente. Recibe `DataComponentProps` |
+| Slot `#data` | Alternativa para partes de datos sin componente: `{ part }` |
 
 El elemento raíz tiene `class="vue-llm-message"` y `data-role` con el rol del mensaje. Las partes usan las clases `vue-llm-text`, `vue-llm-reasoning`, `vue-llm-file` y `vue-llm-source`, para que puedas darles estilo.
 

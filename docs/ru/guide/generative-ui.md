@@ -147,3 +147,36 @@ parsePartialJSON('{"items":[{"n":"a"},{') // { items: [{ n: 'a' }, {}] }
 ## Инструменты на сервере {#server-side-tools}
 
 Инструментам, которым нужны секреты, место на сервере ([инструменты `createLLMHandler`](./server#server-tools)). Их вызовы всё равно стримятся на клиент как части `tool-call` с `state: 'result'`, поэтому их рендерят те же компоненты.
+
+## Части с данными {#data-parts}
+
+Инструменты вызывает модель. Части с данными присылает ваш бэкенд: график, таблицу или прогресс, которые показываются внутри ответа, в том месте стрима, где пришли.
+
+```ts
+// в mapEvent или из любого провайдера
+{ type: 'data', name: 'chart', data: { kind: 'bar', values: [3, 5] } }
+{ type: 'data', name: 'progress', id: 'sql', data: { step: 'running query' } }
+{ type: 'data', name: 'progress', id: 'sql', data: { step: 'done', rows: 12 } } // обновляет часть выше
+```
+
+```vue
+<script setup lang="ts">
+import type { DataComponentProps } from 'vue-llm'
+
+defineProps<DataComponentProps<{ kind: string; values: number[] }>>()
+</script>
+
+<template>
+  <BarChart :values="data.values" />
+</template>
+```
+
+```vue
+<MessageParts :message="message" :data-components="{ chart: ChartPart, progress: ProgressPart }" />
+```
+
+- Чанк `data` с `id` заменяет данные части с теми же `name` и `id` на прежнем месте. Так делаются прогресс и обновляемые значения.
+- Части с данными нужны интерфейсу и в модель не отправляются.
+- `MessageParts` отрисовывает их через `dataComponents` (по `name`, компонент получает `name` и `data`) или слот `#data` (`{ part }`). В своём шаблоне проверяйте `part.type === 'data'`.
+
+Чтобы прикрепить данные ко всему ответу, используйте [метаданные сообщения](./custom-backends#message-metadata).

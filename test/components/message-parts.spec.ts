@@ -78,6 +78,31 @@ describe('MessageParts', () => {
     expect(wrapper.find('.fallback').text()).toBe('search running')
   })
 
+  it('renders data parts with the component mapped to their name', () => {
+    const Chart = defineComponent({
+      props: { name: { type: String, required: true }, data: { type: Object as PropType<{ values: number[] }>, required: true } },
+      setup(props) {
+        return () => h('div', { class: 'chart' }, `${props.name}:${props.data.values.join(',')}`)
+      },
+    })
+    const wrapper = mount(MessageParts, {
+      props: {
+        message: message([{ type: 'data', name: 'chart', id: 'c1', data: { values: [1, 2] } }]),
+        dataComponents: { chart: Chart },
+      },
+    })
+    expect(wrapper.find('.chart').text()).toBe('chart:1,2')
+    expect(wrapper.find('.chart').attributes('id')).toBeUndefined()
+  })
+
+  it('falls back to the data slot for unmapped data parts', () => {
+    const wrapper = mount(MessageParts, {
+      props: { message: message([{ type: 'data', name: 'progress', data: { step: 2 } }]) },
+      slots: { data: `<template #data="{ part }"><i class="fallback">{{ part.name }} {{ part.data.step }}</i></template>` },
+    })
+    expect(wrapper.find('.fallback').text()).toBe('progress 2')
+  })
+
   it('renders images and only http(s) sources', () => {
     const wrapper = mount(MessageParts, {
       props: {

@@ -147,3 +147,36 @@ parsePartialJSON('{"items":[{"n":"a"},{') // { items: [{ n: 'a' }, {}] }
 ## Ferramentas no servidor {#server-side-tools}
 
 Ferramentas que precisam de segredos ficam no servidor ([ferramentas do `createLLMHandler`](./server#server-tools)). As chamadas delas continuam chegando ao cliente via streaming como partes `tool-call` com `state: 'result'`, então os mesmos componentes as renderizam.
+
+## Partes de dados {#data-parts}
+
+Ferramentas são chamadas pelo modelo. Partes de dados são enviadas pelo seu backend: um gráfico, uma tabela ou um progresso mostrado dentro da resposta, no ponto do stream em que chegam.
+
+```ts
+// in mapEvent, or emitted by any provider
+{ type: 'data', name: 'chart', data: { kind: 'bar', values: [3, 5] } }
+{ type: 'data', name: 'progress', id: 'sql', data: { step: 'running query' } }
+{ type: 'data', name: 'progress', id: 'sql', data: { step: 'done', rows: 12 } } // updates the part above
+```
+
+```vue
+<script setup lang="ts">
+import type { DataComponentProps } from 'vue-llm'
+
+defineProps<DataComponentProps<{ kind: string; values: number[] }>>()
+</script>
+
+<template>
+  <BarChart :values="data.values" />
+</template>
+```
+
+```vue
+<MessageParts :message="message" :data-components="{ chart: ChartPart, progress: ProgressPart }" />
+```
+
+- Um chunk `data` com `id` substitui, no mesmo lugar, os dados da parte com os mesmos `name` e `id`. Use para progresso e valores ao vivo.
+- Partes de dados são para a interface e não são enviadas ao modelo.
+- O `MessageParts` as renderiza com `dataComponents` (por `name`; o componente recebe `name` e `data`) ou com o slot `#data` (`{ part }`). No seu próprio template, verifique `part.type === 'data'`.
+
+Para anexar dados à resposta inteira, use [metadados da mensagem](./custom-backends#message-metadata).
