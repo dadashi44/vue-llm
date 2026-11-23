@@ -103,7 +103,7 @@ const echo: LLMProvider = {
 }
 ```
 
-该流会产出 `ChatStreamChunk`：`text-delta`、`reasoning-delta`、`tool-call-start`、`tool-call-delta`、`tool-call-end`、`tool-result`、`finish` 和 `error`。
+该流会产出 `ChatStreamChunk`：`text-delta`、`reasoning-delta`、`tool-call-start`、`tool-call-delta`、`tool-call-end`、`tool-result`、`message-metadata`、`finish` 和 `error`。
 
 ## 错误 {#errors}
 

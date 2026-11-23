@@ -103,7 +103,7 @@ const echo: LLMProvider = {
 }
 ```
 
-Поток отдаёт `ChatStreamChunk`: `text-delta`, `reasoning-delta`, `tool-call-start`, `tool-call-delta`, `tool-call-end`, `tool-result`, `finish` и `error`.
+Поток отдаёт `ChatStreamChunk`: `text-delta`, `reasoning-delta`, `tool-call-start`, `tool-call-delta`, `tool-call-end`, `tool-result`, `message-metadata`, `finish` и `error`.
 
 ## Ошибки {#errors}
 

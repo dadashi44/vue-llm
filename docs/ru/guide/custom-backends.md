@@ -27,6 +27,7 @@ const provider = createSSEProvider({
         { type: 'tool-call-end', toolCallId: d.id },
       ]
       case 'tool_result': return { type: 'tool-result', toolCallId: d.tool_use_id, result: d.output }
+      case 'final': return { type: 'message-metadata', metadata: d } // summary, chart…
       case 'error': return { type: 'error', error: new Error(d.message) }
       case 'done': return { type: 'finish', finishReason: 'stop' }
     }
@@ -66,6 +67,22 @@ const { messages, sendMessage } = useChat({ provider, model: 'default', body: ()
 ::: tip
 `tool-call-end` приходит раньше `tool-result`, поэтому обработчик `onToolCall` тоже видит серверные вызовы. Для инструментов, которые клиент не обрабатывает, возвращайте `undefined` — их заполнит результат с сервера.
 :::
+
+## Метаданные сообщения {#message-metadata}
+
+Данные, которые относятся к ответу, но не являются текстом (id в вашей базе, источники, график, стоимость), передаются чанком `message-metadata`:
+
+```ts
+{ type: 'message-metadata', metadata: { messageId: 42, summary: '…' } }
+```
+
+`useChat` добавляет их в `metadata` сообщения ассистента. Таких чанков может прийти несколько, и более поздний ключ заменяет более ранний. Выводите их как любое другое поле:
+
+```vue
+<ChartFromAi v-if="message.metadata?.chart" :chart="message.metadata.chart" />
+```
+
+Метаданные есть и в сообщении, которое получает `onFinish`, и сохраняются вместе с [историей](./persistence). Поток `createLLMHandler` передаёт эти чанки в `createProxyProvider` без изменений.
 
 ## С vue-llm на сервере {#with-vue-llm-on-the-server}
 

@@ -27,6 +27,7 @@ const provider = createSSEProvider({
         { type: 'tool-call-end', toolCallId: d.id },
       ]
       case 'tool_result': return { type: 'tool-result', toolCallId: d.tool_use_id, result: d.output }
+      case 'final': return { type: 'message-metadata', metadata: d } // summary, chart…
       case 'error': return { type: 'error', error: new Error(d.message) }
       case 'done': return { type: 'finish', finishReason: 'stop' }
     }
@@ -66,6 +67,22 @@ const { messages, sendMessage } = useChat({ provider, model: 'default', body: ()
 ::: tip
 `tool-call-end` 会先于 `tool-result` 到达，因此 `onToolCall` 处理函数也会看到服务端调用。对于客户端不处理的工具返回 `undefined` 即可，服务端结果会将其补全。
 :::
+
+## 消息元数据 {#message-metadata}
+
+属于回答但不是文本的数据（数据库中的 id、来源、图表、费用等）通过 `message-metadata` chunk 传递：
+
+```ts
+{ type: 'message-metadata', metadata: { messageId: 42, summary: '…' } }
+```
+
+`useChat` 会将其合并到助手消息的 `metadata` 中。流中可以出现多个这样的 chunk，后到的键会覆盖先前的键。像其他字段一样渲染即可：
+
+```vue
+<ChartFromAi v-if="message.metadata?.chart" :chart="message.metadata.chart" />
+```
+
+传给 `onFinish` 的消息中同样包含这些元数据，并会随[持久化](./persistence)一起保存。`createLLMHandler` 的流会将这些 chunk 原样传给 `createProxyProvider`。
 
 ## 在服务端使用 vue-llm {#with-vue-llm-on-the-server}
 

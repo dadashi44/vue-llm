@@ -27,6 +27,7 @@ const provider = createSSEProvider({
         { type: 'tool-call-end', toolCallId: d.id },
       ]
       case 'tool_result': return { type: 'tool-result', toolCallId: d.tool_use_id, result: d.output }
+      case 'final': return { type: 'message-metadata', metadata: d } // summary, chart…
       case 'error': return { type: 'error', error: new Error(d.message) }
       case 'done': return { type: 'finish', finishReason: 'stop' }
     }
@@ -66,6 +67,22 @@ const { messages, sendMessage } = useChat({ provider, model: 'default', body: ()
 ::: tip
 `tool-call-end` は `tool-result` より先に届くため、`onToolCall` ハンドラーにはサーバーサイドの呼び出しも渡されます。クライアントで処理しないツールには `undefined` を返してください。サーバーの結果がそれを埋めます。
 :::
+
+## メッセージのメタデータ {#message-metadata}
+
+回答に属するがテキストではないデータ（データベースの id、出典、グラフ、コストなど）は `message-metadata` チャンクで送ります。
+
+```ts
+{ type: 'message-metadata', metadata: { messageId: 42, summary: '…' } }
+```
+
+`useChat` はこれをアシスタントメッセージの `metadata` にマージします。ストリーム中に複数届いてもよく、後から届いたキーが前の値を置き換えます。ほかのフィールドと同じように表示できます。
+
+```vue
+<ChartFromAi v-if="message.metadata?.chart" :chart="message.metadata.chart" />
+```
+
+メタデータは `onFinish` に渡されるメッセージにも含まれ、[永続化](./persistence)でも保存されます。`createLLMHandler` のストリームはこれらのチャンクをそのまま `createProxyProvider` に渡します。
 
 ## サーバーで vue-llm を使う場合 {#with-vue-llm-on-the-server}
 
