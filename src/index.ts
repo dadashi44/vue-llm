@@ -16,7 +16,8 @@ export { useAutoScroll } from './composables/use-auto-scroll.js'
 export type { UseAutoScrollOptions, UseAutoScrollReturn } from './composables/use-auto-scroll.js'
 
 export { useMCP } from './composables/use-mcp.js'
-export type { UseMCPOptions, UseMCPReturn, MCPState } from './composables/use-mcp.js'
+export type { UseMCPOptions, UseMCPBrowserOptions, UseMCPServerModeOptions, UseMCPReturn, MCPState } from './composables/use-mcp.js'
+export type { MCPServerModeOptions } from './composables/mcp-server-mode.js'
 
 export { useMCPServers } from './composables/use-mcp-servers.js'
 export type { UseMCPServersOptions, UseMCPServersReturn, MCPServerItem, MCPServerEntry } from './composables/use-mcp-servers.js'

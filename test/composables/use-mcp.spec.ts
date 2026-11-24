@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
 import { effectScope, type EffectScope } from 'vue'
-import { useMCP, type UseMCPOptions, type UseMCPReturn } from '../../src/composables/use-mcp.js'
+import { useMCP, type UseMCPBrowserOptions, type UseMCPReturn } from '../../src/composables/use-mcp.js'
 import { MCPAuthError, MCPUnsupportedServerError } from '../../src/mcp/errors.js'
+import { AUTH_URL, fakeBackend, sendCallback as sendServerCallback, stubPopup as stubServerPopup } from './mcp-backend.js'
 
 const SERVER = 'https://mcp.example.com/mcp'
 const ISSUER = 'https://auth.example.com'
@@ -137,7 +138,7 @@ function stubPopup(blocked = false): { open: ReturnType<typeof vi.fn>; popup: Fa
   return { open, popup }
 }
 
-function setup(options: Partial<UseMCPOptions> = {}): UseMCPReturn {
+function setup(options: Partial<UseMCPBrowserOptions> = {}): UseMCPReturn {
   scope = effectScope()
   return scope.run(() => useMCP({ url: SERVER, ...options }))!
 }
@@ -475,5 +476,82 @@ describe('useMCP', () => {
     expect(getItem).not.toHaveBeenCalled()
     expect(setItem).not.toHaveBeenCalled()
     expect(open).not.toHaveBeenCalled()
+  })
+})
+
+describe('useMCP server mode', () => {
+  function serverSetup(id: string, options: Record<string, unknown> = {}) {
+    const log: string[] = []
+    const backend = fakeBackend(log)
+    scope = effectScope()
+    const mcp = scope.run(() => useMCP({ id, server: '/api/mcp', fetch: backend.fetchFn as unknown as typeof fetch, ...options }))!
+    return { mcp, backend, log }
+  }
+
+  it('reads the state of its server from GET /servers', async () => {
+    const globalFetch = vi.fn()
+    vi.stubGlobal('fetch', globalFetch)
+    const gh = serverSetup('gh')
+    await until(() => gh.mcp.state.value === 'ready')
+    expect(gh.log).toEqual(['GET /servers'])
+    expect(gh.mcp.tools.value).toEqual([])
+    expect(gh.mcp.error.value).toBeUndefined()
+
+    const bad = serverSetup('bad')
+    await until(() => bad.mcp.state.value === 'failed')
+    expect(bad.mcp.error.value!.message).toBe('Timed out connecting to bad.test')
+
+    const missing = serverSetup('nope')
+    await until(() => missing.mcp.state.value === 'failed')
+    expect(missing.mcp.error.value!.message).toMatch(/nope/)
+    expect(globalFetch).not.toHaveBeenCalled()
+  })
+
+  it('connect, disconnect and logout map to the routes', async () => {
+    const { mcp, log } = serverSetup('notion', { autoConnect: false })
+    expect(mcp.state.value).toBe('idle')
+    expect(log).toEqual([])
+    await mcp.connect()
+    expect(mcp.state.value).toBe('needs-auth')
+    await mcp.disconnect()
+    expect(mcp.state.value).toBe('idle')
+    await mcp.logout()
+    expect(mcp.state.value).toBe('idle')
+    expect(log).toEqual(['POST /servers/notion/enable', 'POST /servers/notion/disable', 'POST /servers/notion/logout'])
+  })
+
+  it('authorize opens about:blank first, POSTs /authorize, then navigates the popup', async () => {
+    const { mcp, backend, log } = serverSetup('notion', { autoConnect: false })
+    const { open, popup } = stubServerPopup(log)
+    const done = mcp.authorize()
+    expect(open.mock.calls[0][0]).toBe('about:blank')
+    await until(() => popup.location.href === AUTH_URL)
+    expect(log.slice(0, 2)).toEqual(['open', 'POST /servers/notion/authorize'])
+    expect(mcp.state.value).toBe('authorizing')
+    expect(mcp.authUrl.value).toBe(AUTH_URL)
+    backend.find('notion')!.state = 'connected'
+    sendServerCallback({ id: 'notion', ok: true })
+    await done
+    expect(log.at(-1)).toBe('GET /servers')
+    expect(mcp.state.value).toBe('ready')
+    expect(mcp.authUrl.value).toBeUndefined()
+    expect(mcp.tools.value).toEqual([])
+  })
+
+  it('refetches on window focus', async () => {
+    const { mcp, backend } = serverSetup('gh')
+    await until(() => mcp.state.value === 'ready')
+    backend.find('gh')!.state = 'needs-auth'
+    window.dispatchEvent(new Event('focus'))
+    await until(() => mcp.state.value === 'needs-auth')
+  })
+
+  it('sends custom headers and credentials', async () => {
+    const { mcp, backend } = serverSetup('gh', { headers: { Authorization: 'Bearer x' }, credentials: 'omit' })
+    await until(() => mcp.state.value === 'ready')
+    const r = backend.world.requests[0]
+    expect(r.headers.get('Authorization')).toBe('Bearer x')
+    expect(r.headers.get('Content-Type')).toBe('application/json')
+    expect(r.credentials).toBe('omit')
   })
 })

@@ -4,6 +4,17 @@ import type { MCPServerPreset } from '../mcp/servers.js'
 import { resolveMCPStorage, type MCPStorageOption } from '../mcp/storage.js'
 import { checkUrl, idFromHost } from '../mcp/url.js'
 import type { MCPTool } from '../mcp/tools.js'
+import { openAuthPopup } from '../mcp/callback.js'
+import { MCPAuthError } from '../mcp/errors.js'
+import {
+  authorizeThroughBackend,
+  closePopup,
+  createMCPBackend,
+  mapBackendState,
+  toError,
+  type MCPBackendEntry,
+  type MCPServerModeOptions,
+} from './mcp-server-mode.js'
 import { useMCP, type MCPState, type UseMCPReturn } from './use-mcp.js'
 
 /** A catalog entry that isn't a preset: any Streamable HTTP endpoint */
@@ -15,10 +26,13 @@ export interface MCPServerEntry {
   name?: string
 }
 
-export interface UseMCPServersOptions {
-  /** Servers the user can turn on and off; all are off until the user enables them */
+export interface UseMCPServersOptions extends Partial<MCPServerModeOptions> {
+  /**
+   * Servers the user can turn on and off; all are off until the user enables them.
+   * Optional with `server`: the backend's list is the source of truth (shown until it loads)
+   */
   catalog?: (MCPServerPreset | MCPServerEntry)[]
-  /** Lets the user add servers by URL with `add()`. Default `false` */
+  /** Lets the user add servers by URL with `add()`. Default `false`. With `server` the backend's `allowCustom` decides */
   allowCustom?: boolean
   /** OAuth redirect URI for every server; default `${location.origin}/mcp/callback` */
   callbackUrl?: string
@@ -56,11 +70,12 @@ export interface UseMCPServersReturn {
   /**
    * Adds a server by URL (needs `allowCustom`) and returns its id, derived from the host.
    * An invalid URL doesn't throw: the entry is added in `failed` with the reason in `error`.
+   * With `server` the backend assigns the id; the returned one is derived the same way.
    */
   add: (server: { url: string; name?: string }) => string
   /** Forgets a server added with `add()` and its tokens; throws for catalog servers */
   remove: (id: string) => Promise<void>
-  /** Reconnects every enabled server */
+  /** Reconnects every enabled server; with `server`, refetches the list from the backend */
   refresh: () => Promise<void>
 }
 
@@ -110,8 +125,13 @@ function parsePersisted(raw: string | null | undefined): Persisted | undefined {
  * const connectors = useMCPServers({ catalog: [mcpServers.notion, mcpServers.linear], allowCustom: true })
  * useChat({ provider, tools: () => connectors.tools.value })
  * ```
+ *
+ * With `server: '/api/mcp'` the list, states and actions come from `createMCPConnector` on your
+ * backend, which keeps the tokens and runs the tools (`tools` stays `[]`). The list is refetched
+ * on `refresh()`, when the window regains focus and after a sign-in popup closes.
  */
 export function useMCPServers(o: UseMCPServersOptions = {}): UseMCPServersReturn {
+  if (o.server !== undefined) return useServerMCPServers({ ...o, server: o.server })
   const storage = resolveMCPStorage(o.storage ?? 'local')
   const entries = shallowRef<Entry[]>([])
   let disposed = false
@@ -329,6 +349,247 @@ export function useMCPServers(o: UseMCPServersOptions = {}): UseMCPServersReturn
   const tools = computed(() =>
     entries.value.flatMap(e => (e.enabled.value && e.item.state === 'ready' ? e.item.tools : [])),
   )
+
+  return { list, tools, enable, disable, authorize, add, remove, refresh }
+}
+
+/** Per-server state on top of the backend's list while a request runs or after it failed */
+interface Overlay {
+  enabled?: boolean
+  state?: MCPState
+  error?: Error
+  authUrl?: string
+}
+
+/** A server only this page knows: added and not yet saved, or refused */
+interface LocalEntry {
+  id: string
+  name: string
+  url: string
+  failure?: Error
+}
+
+/** Server mode: the list and actions of `createMCPConnector` */
+function useServerMCPServers(o: UseMCPServersOptions & MCPServerModeOptions): UseMCPServersReturn {
+  const api = createMCPBackend(o)
+  const fallback: MCPBackendEntry[] = (o.catalog ?? []).map(s => ({
+    id: s.id,
+    name: s.name ?? s.id,
+    url: s.url,
+    custom: false,
+    enabled: false,
+    state: 'needs-auth',
+  }))
+  const remote = shallowRef<MCPBackendEntry[] | undefined>()
+  const local = shallowRef<LocalEntry[]>([])
+  const overlays = shallowRef(new Map<string, Overlay>())
+  /** Requests running per server id: their overlays survive a list refresh */
+  const busy = new Map<string, number>()
+  let requests = 0
+  let applied = 0
+  let disposed = false
+  let authAbort: AbortController | undefined
+  let authPopup: Window | null = null
+
+  function setOverlay(id: string, next: Overlay | undefined) {
+    const map = new Map(overlays.value)
+    if (next) map.set(id, { ...map.get(id), ...next })
+    else map.delete(id)
+    overlays.value = map
+  }
+
+  function apply(servers: MCPBackendEntry[], seq: number) {
+    if (disposed || seq < applied) return
+    applied = seq
+    remote.value = servers
+    const map = new Map<string, Overlay>()
+    for (const [id, overlay] of overlays.value) if (busy.get(id)) map.set(id, overlay)
+    overlays.value = map
+  }
+
+  const toItem = (e: MCPBackendEntry, overlay: Overlay | undefined, failure?: Error): MCPServerItem => {
+    const enabled = overlay?.enabled ?? e.enabled
+    const mapped = failure
+      ? { state: 'failed' as const, error: failure }
+      : overlay?.state ? { state: overlay.state, error: overlay.error } : mapBackendState({ ...e, enabled })
+    return {
+      id: e.id,
+      name: e.name,
+      url: e.url,
+      custom: e.custom,
+      enabled,
+      state: mapped.state,
+      error: mapped.error,
+      authUrl: overlay?.authUrl,
+      tools: [],
+    }
+  }
+
+  const list = computed(() => {
+    const base = remote.value ?? fallback
+    const items = base.map(e => toItem(e, overlays.value.get(e.id)))
+    for (const l of local.value) {
+      if (base.some(e => e.id === l.id)) continue
+      const entry: MCPBackendEntry = { id: l.id, name: l.name, url: l.url, custom: true, enabled: !l.failure, state: 'needs-auth' }
+      items.push(toItem(entry, overlays.value.get(l.id), l.failure))
+    }
+    return items
+  })
+
+  function get(id: string): MCPServerItem {
+    const item = list.value.find(i => i.id === id)
+    if (!item) throw new Error(`useMCPServers: unknown server "${id}"`)
+    return item
+  }
+
+  const isLocal = (id: string) => local.value.some(l => l.id === id) && !(remote.value ?? []).some(e => e.id === id)
+
+  function uniqueId(base: string): string {
+    let id = base
+    for (let n = 2; list.value.some(i => i.id === id); n++) id = `${base}-${n}`
+    return id
+  }
+
+  /** Runs one request for server `id` with `pending` shown until it ends; a failure stays on the entry */
+  async function request(id: string, run: () => Promise<MCPBackendEntry[]>, pending: Overlay): Promise<void> {
+    if (!isClient()) return
+    busy.set(id, (busy.get(id) ?? 0) + 1)
+    setOverlay(id, { error: undefined, ...pending })
+    const seq = ++requests
+    let failure: Error | undefined
+    try {
+      apply(await run(), seq)
+    } catch (e) {
+      failure = toError(e)
+    } finally {
+      const left = (busy.get(id) ?? 1) - 1
+      if (left > 0) busy.set(id, left)
+      else busy.delete(id)
+      if (!disposed && !left) setOverlay(id, failure ? { state: 'failed', error: failure } : undefined)
+    }
+  }
+
+  async function refresh(): Promise<void> {
+    if (!isClient() || disposed) return
+    const seq = ++requests
+    try {
+      apply(await api.list(), seq)
+    } catch {
+      // The list stays as it was; the next refresh (focus, popup, refresh()) tries again
+    }
+  }
+
+  function enable(id: string) {
+    const item = get(id)
+    if (isLocal(id) || item.state === 'authorizing') return
+    void request(id, () => api.action(id, 'enable'), { enabled: true, state: 'connecting' })
+  }
+
+  function disable(id: string): Promise<void> {
+    get(id)
+    if (isLocal(id)) return Promise.resolve()
+    if (authAbort && overlays.value.get(id)?.state === 'authorizing') abortAuthWait()
+    return request(id, () => api.action(id, 'disable'), { enabled: false, state: 'idle' })
+  }
+
+  function abortAuthWait(keep: Window | null = null) {
+    authAbort?.abort(new MCPAuthError('aborted', 'Sign-in was cancelled'))
+    authAbort = undefined
+    if (authPopup && authPopup !== keep) closePopup(authPopup)
+    authPopup = null
+  }
+
+  function authorize(id: string): Promise<void> {
+    get(id)
+    // Local entries and servers the backend can't use never get a popup
+    const unsupported = remote.value?.find(e => e.id === id)?.state === 'unsupported'
+    if (isLocal(id) || unsupported || !isClient()) return Promise.resolve()
+    // Synchronously, before any await: keeps the user gesture so the popup isn't blocked
+    const popup = openAuthPopup()
+    return runAuthorization(id, popup)
+  }
+
+  async function runAuthorization(id: string, popup: Window | null): Promise<void> {
+    abortAuthWait(popup)
+    const controller = new AbortController()
+    authAbort = controller
+    authPopup = popup
+    busy.set(id, (busy.get(id) ?? 0) + 1)
+    setOverlay(id, { enabled: true, state: 'authorizing', error: undefined, authUrl: undefined })
+    let failure: Error | undefined
+    try {
+      await authorizeThroughBackend(api, {
+        id,
+        server: o.server,
+        popup,
+        signal: controller.signal,
+        onUrl: url => setOverlay(id, { authUrl: url }),
+      })
+    } catch (e) {
+      // Cancelled by a newer authorize() (which may have taken the popup over), disable() or dispose
+      if (!controller.signal.aborted) {
+        closePopup(popup)
+        failure = toError(e)
+      }
+    } finally {
+      if (authAbort === controller) {
+        authAbort = undefined
+        authPopup = null
+      }
+      const left = (busy.get(id) ?? 1) - 1
+      if (left > 0) busy.set(id, left)
+      else busy.delete(id)
+      if (!disposed && !left) setOverlay(id, failure ? { state: 'failed', error: failure } : undefined)
+    }
+    if (!failure && !controller.signal.aborted) await refresh()
+  }
+
+  function add(server: { url: string; name?: string }): string {
+    const input = server.url.trim()
+    const name = server.name?.trim()
+    const url = checkUrl(input)
+    if (url instanceof Error) {
+      const id = uniqueId('custom')
+      local.value = [...local.value, { id, name: name || input || id, url: input, failure: url }]
+      return id
+    }
+    const id = uniqueId(idFromHost(url))
+    const entry: LocalEntry = { id, name: name || url.host, url: input }
+    local.value = [...local.value, entry]
+    void request(id, async () => {
+      const result = await api.add({ url: input, ...(name ? { name } : {}) })
+      local.value = local.value.filter(l => l !== entry)
+      return result.servers
+    }, { enabled: true, state: 'connecting' })
+    return id
+  }
+
+  function remove(id: string): Promise<void> {
+    const item = get(id)
+    if (!item.custom) throw new Error(`useMCPServers: "${id}" is in the catalog; disable it instead`)
+    if (isLocal(id)) {
+      local.value = local.value.filter(l => l.id !== id)
+      setOverlay(id, undefined)
+      return Promise.resolve()
+    }
+    return request(id, () => api.remove(id), {})
+  }
+
+  const onFocus = () => void refresh()
+  if (isClient()) {
+    window.addEventListener('focus', onFocus)
+    void refresh()
+  }
+
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      disposed = true
+      abortAuthWait()
+      if (isClient()) window.removeEventListener('focus', onFocus)
+    })
+  }
+
+  const tools = computed<MCPTool[]>(() => [])
 
   return { list, tools, enable, disable, authorize, add, remove, refresh }
 }

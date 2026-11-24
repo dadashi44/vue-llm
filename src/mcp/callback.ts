@@ -51,10 +51,13 @@ export function openAuthPopup(): Window | null {
   return window.open('about:blank', 'vue-llm-mcp-auth', 'popup,width=600,height=720')
 }
 
-/** Resolves with the first same-origin callback message accepted by `match` */
+/**
+ * Resolves with the first callback message accepted by `match`, posted from this page's origin
+ * (or `origin`: a backend on another origin whose callback page posts to the opener)
+ */
 export function waitForMCPCallback(
   match: (m: MCPCallbackMessage) => boolean,
-  o: { popup?: Window | null; signal?: AbortSignal } = {},
+  o: { popup?: Window | null; signal?: AbortSignal; origin?: string } = {},
 ): Promise<MCPCallbackMessage> {
   return new Promise((resolve, reject) => {
     let channel: BroadcastChannel | undefined
@@ -74,7 +77,7 @@ export function waitForMCPCallback(
       resolve(m)
     }
     const onMessage = (e: MessageEvent) => {
-      if (e.origin !== location.origin) return
+      if (e.origin !== location.origin && e.origin !== o.origin) return
       accept(e.data)
     }
     const onAbort = () => {

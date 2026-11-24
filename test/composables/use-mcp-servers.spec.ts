@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { effectScope, type EffectScope } from 'vue'
+import { effectScope, ref, type EffectScope } from 'vue'
 import { useMCPServers, type UseMCPServersOptions, type UseMCPServersReturn } from '../../src/composables/use-mcp-servers.js'
 import { MCPUnsupportedServerError } from '../../src/mcp/errors.js'
 import { mcpServers } from '../../src/mcp/servers.js'
+import { AUTH_URL, fakeBackend, sendCallback, stubPopup } from './mcp-backend.js'
 
 const KEY = 'vue-llm:mcp:'
 const A = 'https://mcp.alpha.dev/mcp'
@@ -255,5 +256,189 @@ describe('useMCPServers', () => {
     expect(fetchFn).not.toHaveBeenCalled()
     expect(getItem).not.toHaveBeenCalled()
     expect(setItem).not.toHaveBeenCalled()
+  })
+})
+
+describe('useMCPServers server mode', () => {
+  function serverSetup(options: Partial<UseMCPServersOptions> = {}) {
+    const events: string[] = []
+    const backend = fakeBackend(events)
+    const s = setup({ catalog: undefined, server: '/api/mcp', fetch: backend.fetchFn as unknown as typeof fetch, ...options })
+    return { s, backend, events }
+  }
+
+  it('server mode lists from GET /servers', async () => {
+    const globalFetch = vi.fn()
+    vi.stubGlobal('fetch', globalFetch)
+    const { s, backend } = serverSetup()
+    await until(() => s.list.value.length === 4)
+    expect(backend.world.requests[0]).toMatchObject({ url: '/api/mcp/servers', method: 'GET' })
+    expect(s.list.value.map(i => [i.id, i.name, i.url, i.custom, i.enabled, i.state])).toEqual([
+      ['notion', 'Notion', 'https://mcp.notion.com/mcp', false, false, 'idle'],
+      ['gh', 'GitHub', 'https://gh.test/mcp', false, true, 'ready'],
+      ['bad', 'Bad', 'https://bad.test/mcp', false, true, 'failed'],
+      ['bo', 'Browser only', 'https://bo.test/mcp', false, false, 'failed'],
+    ])
+    expect(item(s, 'bad').error).toBeInstanceOf(Error)
+    expect(item(s, 'bad').error!.message).toBe('Timed out connecting to bad.test')
+    expect(item(s, 'bo').error!.message).toBe('Browser only works only in browser mode')
+    expect(item(s, 'gh').error).toBeUndefined()
+    expect(globalFetch).not.toHaveBeenCalled()
+    expect(localStorage.length).toBe(0)
+
+    backend.find('notion')!.enabled = true
+    await s.refresh()
+    expect(item(s, 'notion').state).toBe('needs-auth')
+  })
+
+  it('shows the frontend catalog until the backend answers', async () => {
+    const { s } = serverSetup({ catalog: [mcpServers.notion] })
+    expect(s.list.value.map(i => [i.id, i.enabled, i.state])).toEqual([['notion', false, 'idle']])
+    await until(() => s.list.value.length === 4)
+  })
+
+  it('tools is always [] in server mode', async () => {
+    const { s } = serverSetup()
+    await until(() => item(s, 'gh')?.state === 'ready')
+    expect(item(s, 'gh').tools).toEqual([])
+    expect(s.tools.value).toEqual([])
+  })
+
+  it('authorize opens about:blank first, POSTs /authorize, then navigates the popup', async () => {
+    const { s, backend, events } = serverSetup()
+    await until(() => s.list.value.length === 4)
+    const { open, popup } = stubPopup(events)
+    events.length = 0
+    const done = s.authorize('notion')
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(open.mock.calls[0][0]).toBe('about:blank')
+    expect(events[0]).toBe('open')
+    await until(() => popup.location.href === AUTH_URL)
+    expect(events.slice(0, 2)).toEqual(['open', 'POST /servers/notion/authorize'])
+    expect(item(s, 'notion')).toMatchObject({ enabled: true, state: 'authorizing', authUrl: AUTH_URL })
+
+    backend.find('notion')!.state = 'connected'
+    sendCallback({ id: 'other', ok: true })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(item(s, 'notion').state).toBe('authorizing')
+    const gets = backend.gets()
+    sendCallback({ id: 'notion', ok: true })
+    await done
+    expect(backend.gets()).toBeGreaterThan(gets)
+    expect(item(s, 'notion')).toMatchObject({ enabled: true, state: 'ready', authUrl: undefined })
+  })
+
+  it('authorize of an already connected server closes the popup and refreshes', async () => {
+    const { s, backend, events } = serverSetup()
+    await until(() => s.list.value.length === 4)
+    const { popup } = stubPopup(events)
+    backend.world.authorizeUrl = null
+    const gets = backend.gets()
+    await s.authorize('gh')
+    expect(popup.closed).toBe(true)
+    expect(popup.location.href).toBe('about:blank')
+    expect(backend.gets()).toBeGreaterThan(gets)
+    expect(item(s, 'gh').state).toBe('ready')
+  })
+
+  it('refetches after the popup closes and on window focus', async () => {
+    const { s, backend, events } = serverSetup()
+    await until(() => s.list.value.length === 4)
+    const { popup } = stubPopup(events)
+    const done = s.authorize('notion')
+    await until(() => popup.location.href === AUTH_URL)
+    const gets = backend.gets()
+    // The user signed in, but the message never arrived (e.g. a cross-origin backend)
+    backend.find('notion')!.state = 'connected'
+    popup.closed = true
+    await done
+    expect(backend.gets()).toBe(gets + 1)
+    expect(item(s, 'notion').state).toBe('ready')
+
+    backend.find('gh')!.state = 'needs-auth'
+    window.dispatchEvent(new Event('focus'))
+    await until(() => item(s, 'gh').state === 'needs-auth')
+    expect(backend.gets()).toBe(gets + 2)
+
+    scope!.stop()
+    window.dispatchEvent(new Event('focus'))
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(backend.gets()).toBe(gets + 2)
+  }, 10_000)
+
+  it('sends custom headers and credentials', async () => {
+    const token = ref('t1')
+    const { s, backend } = serverSetup({ headers: () => ({ Authorization: `Bearer ${token.value}` }) })
+    await until(() => s.list.value.length === 4)
+    token.value = 't2'
+    s.enable('notion')
+    await until(() => backend.world.requests.length === 2)
+    for (const r of backend.world.requests) {
+      expect(r.credentials).toBe('include')
+      expect(r.headers.get('Content-Type')).toBe('application/json')
+    }
+    expect(backend.world.requests.map(r => r.headers.get('Authorization'))).toEqual(['Bearer t1', 'Bearer t2'])
+
+    const other = serverSetup({ credentials: 'same-origin', headers: ref({ 'X-Csrf': 'abc' }) })
+    await until(() => other.backend.world.requests.length === 1)
+    expect(other.backend.world.requests[0].credentials).toBe('same-origin')
+    expect(other.backend.world.requests[0].headers.get('X-Csrf')).toBe('abc')
+  })
+
+  it('enable, disable, add and remove map to the routes', async () => {
+    const { s, backend, events } = serverSetup()
+    await until(() => s.list.value.length === 4)
+    events.length = 0
+    s.enable('notion')
+    expect(item(s, 'notion').enabled).toBe(true)
+    await until(() => backend.find('notion')!.enabled)
+    await s.disable('gh')
+    expect(item(s, 'gh')).toMatchObject({ enabled: false, state: 'idle' })
+
+    const id = s.add({ url: 'https://mcp.example.com/mcp', name: 'Ex' })
+    expect(id).toBe('example')
+    expect(item(s, 'example')).toMatchObject({ custom: true, enabled: true, name: 'Ex' })
+    await until(() => item(s, 'example').state === 'needs-auth')
+    const post = backend.world.requests.find(r => r.method === 'POST' && r.url === '/api/mcp/servers')!
+    expect(JSON.parse(post.body!)).toEqual({ url: 'https://mcp.example.com/mcp', name: 'Ex' })
+
+    const bad = s.add({ url: 'not a url' })
+    expect(item(s, bad).state).toBe('failed')
+
+    await s.remove('example')
+    expect(s.list.value.some(i => i.id === 'example')).toBe(false)
+    expect(() => s.remove('gh')).toThrow(/catalog/)
+    expect(events).toEqual([
+      'POST /servers/notion/enable',
+      'POST /servers/gh/disable',
+      'POST /servers',
+      'DELETE /servers/example',
+    ])
+  })
+
+  it('shows a failed request on the entry', async () => {
+    const { s, backend } = serverSetup()
+    await until(() => s.list.value.length === 4)
+    backend.fetchFn.mockImplementationOnce(async () => new Response(JSON.stringify({ error: 'Origin not allowed' }), { status: 403 }))
+    s.enable('notion')
+    await until(() => item(s, 'notion').state === 'failed')
+    expect(item(s, 'notion').error!.message).toBe('Origin not allowed')
+  })
+
+  it('authorize opens no popup for a server the backend cannot use', async () => {
+    const { s, backend } = serverSetup()
+    await until(() => s.list.value.length === 4)
+    const { open } = stubPopup()
+    await s.authorize('bo')
+    expect(open).not.toHaveBeenCalled()
+    expect(backend.world.requests.filter(r => r.method === 'POST')).toEqual([])
+  })
+
+  it('does not fetch during setup when window is undefined', () => {
+    const backend = fakeBackend()
+    vi.stubGlobal('window', undefined)
+    const s = setup({ server: '/api/mcp', fetch: backend.fetchFn as unknown as typeof fetch })
+    expect(s.list.value).toHaveLength(2)
+    expect(backend.fetchFn).not.toHaveBeenCalled()
   })
 })

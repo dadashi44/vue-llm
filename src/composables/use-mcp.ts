@@ -5,12 +5,23 @@ import { createMCPClient, type MCPHttpClient } from '../mcp/client.js'
 import { MCPAuthError, MCPUnsupportedServerError } from '../mcp/errors.js'
 import { resolveMCPStorage, type MCPStorageOption } from '../mcp/storage.js'
 import { mcpTools, type MCPTool } from '../mcp/tools.js'
+import {
+  authorizeThroughBackend,
+  closePopup,
+  createMCPBackend,
+  mapBackendState,
+  toError,
+  type MCPBackendEntry,
+  type MCPServerModeOptions,
+} from './mcp-server-mode.js'
 
 export type MCPState = 'idle' | 'connecting' | 'needs-auth' | 'authorizing' | 'ready' | 'failed'
 
-export interface UseMCPOptions {
+/** Browser mode: the browser talks to the MCP server and keeps the tokens */
+export interface UseMCPBrowserOptions {
   /** The Streamable HTTP endpoint of the MCP server */
   url: string
+  server?: undefined
   /** Shown on the provider's consent screen; default `document.title` (or `'vue-llm'`) */
   clientName?: string
   /** OAuth redirect URI; default `${location.origin}/mcp/callback`, relative values resolve against the page */
@@ -27,9 +38,22 @@ export interface UseMCPOptions {
   storage?: MCPStorageOption
 }
 
+/**
+ * Server mode: the backend (`createMCPConnector`) connects to the server, keeps the tokens and
+ * runs the tools; this tracks its state and signs in through it. `tools` stays `[]`.
+ */
+export interface UseMCPServerModeOptions extends MCPServerModeOptions {
+  /** The server's id in the backend's list */
+  id: string
+  /** Read the state on mount. Default `true` */
+  autoConnect?: boolean
+}
+
+export type UseMCPOptions = UseMCPBrowserOptions | UseMCPServerModeOptions
+
 export interface UseMCPReturn {
   state: Ref<MCPState>
-  /** The server's tools, ready for `useChat({ tools })`; `[]` until `ready` */
+  /** The server's tools, ready for `useChat({ tools })`; `[]` until `ready` (always `[]` in server mode) */
   tools: Ref<MCPTool[]>
   error: Ref<Error | undefined>
   /** The authorization URL while `authorizing`; render it as a link when the popup was blocked */
@@ -60,8 +84,15 @@ const isClient = () => typeof window !== 'undefined'
  * const notion = useMCP({ url: 'https://mcp.notion.com/mcp', prefix: 'notion' })
  * useChat({ provider, tools: () => notion.tools.value })
  * ```
+ *
+ * With `server` (and `id`) it drives a server of `createMCPConnector` instead: `connect` enables
+ * it, `disconnect` disables it, `authorize` signs in through the backend; the tools run there.
  */
 export function useMCP(o: UseMCPOptions): UseMCPReturn {
+  return o.server !== undefined ? useServerMCP(o) : useBrowserMCP(o)
+}
+
+function useBrowserMCP(o: UseMCPBrowserOptions): UseMCPReturn {
   const state = ref<MCPState>('idle')
   const tools = shallowRef<MCPTool[]>([])
   const error = shallowRef<Error | undefined>()
@@ -241,14 +272,6 @@ export function useMCP(o: UseMCPOptions): UseMCPReturn {
     }
   }
 
-  function closePopup(popup: Window | null) {
-    try {
-      if (popup && !popup.closed) popup.close()
-    } catch {
-      // cross-origin access to the popup can throw in some browsers
-    }
-  }
-
   async function closeSession() {
     await session?.client.close().catch(() => {})
   }
@@ -289,6 +312,147 @@ export function useMCP(o: UseMCPOptions): UseMCPReturn {
   if (o.autoConnect !== false && isClient()) {
     if (getCurrentInstance()) onMounted(() => void connect())
     else void connect()
+  }
+
+  return { state, tools, error, authUrl, serverInfo, connect, authorize, disconnect, logout }
+}
+
+/** Server mode: state and actions of one server of `createMCPConnector` */
+function useServerMCP(o: UseMCPServerModeOptions): UseMCPReturn {
+  const state = ref<MCPState>('idle')
+  const tools = shallowRef<MCPTool[]>([])
+  const error = shallowRef<Error | undefined>()
+  const authUrl = ref<string | undefined>()
+  const serverInfo = shallowRef<{ name: string; version: string } | undefined>()
+  const api = createMCPBackend(o)
+
+  /** Bumped by every action; a response from an older one is dropped */
+  let generation = 0
+  /** Orders list responses: an older one never overwrites a newer one */
+  let requests = 0
+  let applied = 0
+  let authAbort: AbortController | undefined
+  let authPopup: Window | null = null
+  let disposed = false
+
+  function apply(servers: MCPBackendEntry[], seq: number) {
+    if (disposed || seq < applied) return
+    applied = seq
+    const entry = servers.find(s => s.id === o.id)
+    if (!entry) {
+      state.value = 'failed'
+      error.value = new Error(`useMCP: the backend at ${o.server} has no server "${o.id}"`)
+      return
+    }
+    const mapped = mapBackendState(entry)
+    state.value = mapped.state
+    error.value = mapped.error
+  }
+
+  function fail(e: unknown) {
+    state.value = 'failed'
+    error.value = toError(e)
+  }
+
+  function abortAuthWait(keep: Window | null = null) {
+    authAbort?.abort(new MCPAuthError('aborted', 'Sign-in was cancelled'))
+    authAbort = undefined
+    if (authPopup && authPopup !== keep) closePopup(authPopup)
+    authPopup = null
+  }
+
+  /** Refetches the state; skipped results while an action or sign-in runs */
+  async function refresh(): Promise<void> {
+    if (!isClient() || state.value === 'authorizing') return
+    const run = generation
+    const seq = ++requests
+    try {
+      const servers = await api.list()
+      if (run === generation) apply(servers, seq)
+    } catch (e) {
+      if (run === generation && !disposed) fail(e)
+    }
+  }
+
+  async function act(run: () => Promise<MCPBackendEntry[]>, pending: MCPState): Promise<void> {
+    if (!isClient()) return
+    const g = ++generation
+    abortAuthWait()
+    authUrl.value = undefined
+    error.value = undefined
+    state.value = pending
+    const seq = ++requests
+    try {
+      const servers = await run()
+      if (g === generation) apply(servers, seq)
+    } catch (e) {
+      if (g === generation && !disposed) fail(e)
+    }
+  }
+
+  const connect = () => act(() => api.action(o.id, 'enable'), 'connecting')
+  const disconnect = () => act(() => api.action(o.id, 'disable'), 'idle')
+  const logout = () => act(() => api.action(o.id, 'logout'), 'idle')
+
+  function authorize(): Promise<void> {
+    if (!isClient()) return Promise.resolve()
+    // Synchronously, before any await: keeps the user gesture so the popup isn't blocked
+    const popup = openAuthPopup()
+    return runAuthorization(popup)
+  }
+
+  async function runAuthorization(popup: Window | null): Promise<void> {
+    const g = ++generation
+    abortAuthWait(popup)
+    const controller = new AbortController()
+    authAbort = controller
+    authPopup = popup
+    state.value = 'authorizing'
+    error.value = undefined
+    authUrl.value = undefined
+    try {
+      await authorizeThroughBackend(api, {
+        id: o.id,
+        server: o.server,
+        popup,
+        signal: controller.signal,
+        onUrl: (url) => {
+          if (g === generation) authUrl.value = url
+        },
+      })
+      if (g !== generation) return
+      authUrl.value = undefined
+      const seq = ++requests
+      apply(await api.list(), seq)
+    } catch (e) {
+      // A superseded run never closes the popup: a newer authorize() may have taken it over
+      if (g !== generation || disposed) return
+      closePopup(popup)
+      authUrl.value = undefined
+      fail(e)
+    } finally {
+      if (authAbort === controller) {
+        authAbort = undefined
+        authPopup = null
+      }
+    }
+  }
+
+  const onFocus = () => void refresh()
+  if (isClient()) window.addEventListener('focus', onFocus)
+
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      disposed = true
+      generation++
+      abortAuthWait()
+      if (isClient()) window.removeEventListener('focus', onFocus)
+    })
+  }
+
+  if (o.autoConnect !== false && isClient()) {
+    if (getCurrentInstance()) onMounted(() => void refresh())
+    else void refresh()
   }
 
   return { state, tools, error, authUrl, serverInfo, connect, authorize, disconnect, logout }
