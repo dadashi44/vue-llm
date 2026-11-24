@@ -49,10 +49,11 @@ description: 'vue-llm API 参考：组合式函数、提供方、中间件、服
 | [`LLMAPIError`](/zh/guide/retries-rate-limiting#errors) | HTTP 错误类 |
 | [`defineTool(tool)`](/zh/guide/tool-calling) | 带类型的工具，`execute` 可选 |
 | [`parsePartialJSON(text)`](/zh/guide/generative-ui#streaming-arguments) | 在流式传输过程中解析不完整的 JSON |
+| [`toUIMessages(messages)`](/zh/guide/nuxt-ui) | 将消息转换为 Vercel AI SDK 格式，例如用于 Nuxt UI 聊天组件 |
 
 ### 类型 {#types}
 
-`UIMessage`、`UIMessagePart`、`TextPart`、`ReasoningPart`、`ToolCallPart`、`FilePart`、`SourcePart`、`ToolDefinition`、`ChatTool`、`ToolCallState`、`ToolExecutionContext`、`ToolComponentProps`、`DeepPartial`、`ChatStatus`、`FinishReason`、`Usage`、`LLMProvider`、`ChatRequest`、`ChatMessage`、`ContentPart`、`ChatStreamResult`、`ChatStreamChunk`、`ChatResponse`、`Middleware`、`ChatHandler`、`RetryOptions`、`RateLimitOptions`、`ChatStorage`、`WebStorageOptions`、`FileInput`、`SendMessageInput`、`PromptTemplate`、`ChatPromptTemplate`、`ChatPromptMessage`、`PromptOptions`、`PromptInput`、`PromptValue`、`PromptVariables`、`PromptVariableNames`, `MCPState`, `MCPServerItem`, `MCPServerEntry`, `MCPServerPreset`, `MCPServerModeOptions`，以及每个组合式函数的 `Use*Options` / `Use*Return`。
+`UIMessage`、`UIMessagePart`、`TextPart`、`ReasoningPart`、`ToolCallPart`、`FilePart`、`SourcePart`、`ToolDefinition`、`ChatTool`、`ToolCallState`、`ToolExecutionContext`、`ToolComponentProps`、`DeepPartial`、`ChatStatus`、`FinishReason`、`Usage`、`LLMProvider`、`ChatRequest`、`ChatMessage`、`ContentPart`、`ChatStreamResult`、`ChatStreamChunk`、`ChatResponse`、`Middleware`、`ChatHandler`、`RetryOptions`、`RateLimitOptions`、`ChatStorage`、`WebStorageOptions`、`FileInput`、`SendMessageInput`、`PromptTemplate`、`ChatPromptTemplate`、`ChatPromptMessage`、`PromptOptions`、`PromptInput`、`PromptValue`、`PromptVariables`、`PromptVariableNames`, `MCPState`, `MCPServerItem`, `MCPServerEntry`, `MCPServerPreset`, `MCPServerModeOptions`, `AISDKUIMessage`, `AISDKUIPart`，以及每个组合式函数的 `Use*Options` / `Use*Return`。
 
 ## `vue-llm/providers`
 

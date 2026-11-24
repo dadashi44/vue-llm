@@ -137,6 +137,7 @@
     "@vitejs/plugin-vue": "^6.0.10",
     "@vue/devtools-api": "^7.7.9",
     "@vue/test-utils": "^2.4.6",
+    "ai": "^7.0.181",
     "clsx": "^2.1.1",
     "eslint": "^9.17.0",
     "eslint-plugin-vue": "^9.32.0",
