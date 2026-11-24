@@ -23,3 +23,6 @@ export type { MCPAuthStorage, MCPStorageOption } from './mcp/storage.js'
 export { createMCPAuth } from './mcp/auth.js'
 export type { MCPAuth } from './mcp/auth.js'
 export type { MCPAuthChallenge } from './mcp/oauth.js'
+
+export { handleMCPCallback } from './mcp/callback.js'
+export type { MCPCallbackMessage } from './mcp/callback.js'
