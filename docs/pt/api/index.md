@@ -14,6 +14,8 @@ description: 'Referência da API do vue-llm: composables, provedores, middleware
 | [`useCompletion(options)`](/pt/guide/use-completion) | Completion de turno único com streaming |
 | [`useObject(options)`](/pt/guide/use-object) | Saída JSON estruturada com streaming |
 | [`usePrompt(template, variables)`](/pt/guide/prompt-templates#useprompt) | Renderização reativa de prompts |
+| [`useMCP(options)`](/pt/guide/mcp#one-server-usemcp) | O usuário conecta um servidor MCP: login, estado, ferramentas reativas |
+| [`useMCPServers(options?)`](/pt/guide/mcp#several-servers-usemcpservers) | Uma lista de servidores MCP que o usuário liga, em que faz login e que adiciona por URL |
 
 ### Chat UI (headless) {#chat-ui-headless}
 
@@ -50,7 +52,7 @@ description: 'Referência da API do vue-llm: composables, provedores, middleware
 
 ### Tipos {#types}
 
-`UIMessage`, `UIMessagePart`, `TextPart`, `ReasoningPart`, `ToolCallPart`, `FilePart`, `SourcePart`, `ToolDefinition`, `ChatTool`, `ToolCallState`, `ToolExecutionContext`, `ToolComponentProps`, `DeepPartial`, `ChatStatus`, `FinishReason`, `Usage`, `LLMProvider`, `ChatRequest`, `ChatMessage`, `ContentPart`, `ChatStreamResult`, `ChatStreamChunk`, `ChatResponse`, `Middleware`, `ChatHandler`, `RetryOptions`, `RateLimitOptions`, `ChatStorage`, `WebStorageOptions`, `FileInput`, `SendMessageInput`, `PromptTemplate`, `ChatPromptTemplate`, `ChatPromptMessage`, `PromptOptions`, `PromptInput`, `PromptValue`, `PromptVariables`, `PromptVariableNames`, além dos `Use*Options` / `Use*Return` de cada composable.
+`UIMessage`, `UIMessagePart`, `TextPart`, `ReasoningPart`, `ToolCallPart`, `FilePart`, `SourcePart`, `ToolDefinition`, `ChatTool`, `ToolCallState`, `ToolExecutionContext`, `ToolComponentProps`, `DeepPartial`, `ChatStatus`, `FinishReason`, `Usage`, `LLMProvider`, `ChatRequest`, `ChatMessage`, `ContentPart`, `ChatStreamResult`, `ChatStreamChunk`, `ChatResponse`, `Middleware`, `ChatHandler`, `RetryOptions`, `RateLimitOptions`, `ChatStorage`, `WebStorageOptions`, `FileInput`, `SendMessageInput`, `PromptTemplate`, `ChatPromptTemplate`, `ChatPromptMessage`, `PromptOptions`, `PromptInput`, `PromptValue`, `PromptVariables`, `PromptVariableNames`, `MCPState`, `MCPServerItem`, `MCPServerEntry`, `MCPServerPreset`, `MCPServerModeOptions`, além dos `Use*Options` / `Use*Return` de cada composable.
 
 ## `vue-llm/providers`
 
@@ -58,11 +60,13 @@ description: 'Referência da API do vue-llm: composables, provedores, middleware
 
 ## `vue-llm/server`
 
-[`createLLMHandler`](/pt/guide/server#createllmhandler) (com [ferramentas no servidor](/pt/guide/server#server-tools)), [`createProxyProvider`](/pt/guide/server#createproxyprovider), [`streamToSSE`](/pt/guide/server#streamtosse).
+[`createLLMHandler`](/pt/guide/server#createllmhandler) (com [ferramentas no servidor](/pt/guide/server#server-tools)), [`createProxyProvider`](/pt/guide/server#createproxyprovider), [`streamToSSE`](/pt/guide/server#streamtosse), [`createMCPConnector`](/pt/guide/mcp#server-mode): os usuários conectam os próprios servidores MCP pelo seu backend.
 
 ## `vue-llm/mcp`
 
 [`mcpTools`](/pt/guide/mcp): ferramentas de um servidor MCP para `useChat` e `createLLMHandler` (use com `@modelcontextprotocol/sdk`).
+
+[`handleMCPCallback`](/pt/guide/mcp#the-callback-page): chame-o na página de callback do login. [`mcpServers`](/pt/guide/mcp#several-servers-usemcpservers): presets para Notion, Linear, Hugging Face, DeepWiki e GitHub. `createMCPClient`: o cliente Streamable HTTP sem dependências por trás do `useMCP`, que pode ser usado com `mcpTools`. Erros: [`MCPUnsupportedServerError`](/pt/guide/mcp#which-servers-work-in-the-browser), `MCPHTTPError`, `MCPAuthError`, `MCPProtocolError`.
 
 ## `vue-llm/devtools`
 

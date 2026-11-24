@@ -14,6 +14,8 @@ description: 'vue-llm API 参考：组合式函数、提供方、中间件、服
 | [`useCompletion(options)`](/zh/guide/use-completion) | 流式单轮补全 |
 | [`useObject(options)`](/zh/guide/use-object) | 流式结构化 JSON 输出 |
 | [`usePrompt(template, variables)`](/zh/guide/prompt-templates#useprompt) | 响应式提示词渲染 |
+| [`useMCP(options)`](/zh/guide/mcp#one-server-usemcp) | 用户连接一个 MCP 服务器：登录、状态、响应式工具 |
+| [`useMCPServers(options?)`](/zh/guide/mcp#several-servers-usemcpservers) | 用户可开启、登录并通过 URL 添加的 MCP 服务器列表 |
 
 ### 聊天界面（无头） {#chat-ui-headless}
 
@@ -50,7 +52,7 @@ description: 'vue-llm API 参考：组合式函数、提供方、中间件、服
 
 ### 类型 {#types}
 
-`UIMessage`、`UIMessagePart`、`TextPart`、`ReasoningPart`、`ToolCallPart`、`FilePart`、`SourcePart`、`ToolDefinition`、`ChatTool`、`ToolCallState`、`ToolExecutionContext`、`ToolComponentProps`、`DeepPartial`、`ChatStatus`、`FinishReason`、`Usage`、`LLMProvider`、`ChatRequest`、`ChatMessage`、`ContentPart`、`ChatStreamResult`、`ChatStreamChunk`、`ChatResponse`、`Middleware`、`ChatHandler`、`RetryOptions`、`RateLimitOptions`、`ChatStorage`、`WebStorageOptions`、`FileInput`、`SendMessageInput`、`PromptTemplate`、`ChatPromptTemplate`、`ChatPromptMessage`、`PromptOptions`、`PromptInput`、`PromptValue`、`PromptVariables`、`PromptVariableNames`，以及每个组合式函数的 `Use*Options` / `Use*Return`。
+`UIMessage`、`UIMessagePart`、`TextPart`、`ReasoningPart`、`ToolCallPart`、`FilePart`、`SourcePart`、`ToolDefinition`、`ChatTool`、`ToolCallState`、`ToolExecutionContext`、`ToolComponentProps`、`DeepPartial`、`ChatStatus`、`FinishReason`、`Usage`、`LLMProvider`、`ChatRequest`、`ChatMessage`、`ContentPart`、`ChatStreamResult`、`ChatStreamChunk`、`ChatResponse`、`Middleware`、`ChatHandler`、`RetryOptions`、`RateLimitOptions`、`ChatStorage`、`WebStorageOptions`、`FileInput`、`SendMessageInput`、`PromptTemplate`、`ChatPromptTemplate`、`ChatPromptMessage`、`PromptOptions`、`PromptInput`、`PromptValue`、`PromptVariables`、`PromptVariableNames`, `MCPState`, `MCPServerItem`, `MCPServerEntry`, `MCPServerPreset`, `MCPServerModeOptions`，以及每个组合式函数的 `Use*Options` / `Use*Return`。
 
 ## `vue-llm/providers`
 
@@ -58,11 +60,13 @@ description: 'vue-llm API 参考：组合式函数、提供方、中间件、服
 
 ## `vue-llm/server`
 
-[`createLLMHandler`](/zh/guide/server#createllmhandler)（含 [服务端工具](/zh/guide/server#server-tools)）、[`createProxyProvider`](/zh/guide/server#createproxyprovider)、[`streamToSSE`](/zh/guide/server#streamtosse)。
+[`createLLMHandler`](/zh/guide/server#createllmhandler)（含 [服务端工具](/zh/guide/server#server-tools)）、[`createProxyProvider`](/zh/guide/server#createproxyprovider)、[`streamToSSE`](/zh/guide/server#streamtosse)、[`createMCPConnector`](/zh/guide/mcp#server-mode)：让用户通过你的后端连接自己的 MCP 服务器。
 
 ## `vue-llm/mcp`
 
 [`mcpTools`](/zh/guide/mcp)：将 MCP 服务器的工具用于 `useChat` 和 `createLLMHandler`（配合 `@modelcontextprotocol/sdk` 使用）。
+
+[`handleMCPCallback`](/zh/guide/mcp#the-callback-page)：在登录回调页面中调用。[`mcpServers`](/zh/guide/mcp#several-servers-usemcpservers)：Notion、Linear、Hugging Face、DeepWiki 和 GitHub 的预设。`createMCPClient`：`useMCP` 所基于的零依赖 Streamable HTTP 客户端，可与 `mcpTools` 搭配使用。错误类型：[`MCPUnsupportedServerError`](/zh/guide/mcp#which-servers-work-in-the-browser)、`MCPHTTPError`、`MCPAuthError`、`MCPProtocolError`。
 
 ## `vue-llm/devtools`
 
