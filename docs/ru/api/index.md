@@ -66,7 +66,7 @@ description: 'Справочник API vue-llm: композаблы, прова
 
 [`mcpTools`](/ru/guide/mcp): инструменты MCP-сервера для `useChat` и `createLLMHandler` (вместе с `@modelcontextprotocol/sdk`).
 
-[`handleMCPCallback`](/ru/guide/mcp#the-callback-page): вызывается на странице возврата после входа. [`mcpServers`](/ru/guide/mcp#several-servers-usemcpservers): готовые описания проверенных серверов. `createMCPClient`: MCP-клиент на Streamable HTTP без зависимостей, на котором построен `useMCP`; работает с `mcpTools`. Ошибки: [`MCPUnsupportedServerError`](/ru/guide/mcp#which-servers-work-in-the-browser), `MCPHTTPError`, `MCPAuthError`, `MCPProtocolError`.
+[`handleMCPCallback`](/ru/guide/mcp#the-callback-page): вызывается на странице возврата после входа. [`mcpServers`](/ru/guide/mcp#several-servers-usemcpservers): готовые описания для Notion, Linear, Hugging Face, DeepWiki и GitHub. `createMCPClient`: MCP-клиент на Streamable HTTP без зависимостей, на котором построен `useMCP`; работает с `mcpTools`. Ошибки: [`MCPUnsupportedServerError`](/ru/guide/mcp#which-servers-work-in-the-browser), `MCPHTTPError`, `MCPAuthError`, `MCPProtocolError`.
 
 ## `vue-llm/devtools` {#vue-llm-devtools}
 

@@ -134,7 +134,7 @@ The frontend API is the same in both; you pick the mode per app.
 | User tokens | browser storage (`localStorage` by default) | your store (database, KV), encrypted |
 | Exposed to XSS on your app | yes | no — the browser never sees provider tokens |
 | Needs a backend | no | yes (a chat usually has one already for the model API key) |
-| Servers that work | those whose sign-in and CORS work from a browser: Notion, Linear, Hugging Face, DeepWiki | any Streamable HTTP server whose sign-in runs on a server, including GitHub (with your OAuth app) |
+| Servers that work | those whose sign-in and CORS work from a browser: verified with Notion and Linear; Hugging Face and DeepWiki checked for browser access | Streamable HTTP servers whose sign-in can run on a backend; tested with the test servers in the vue-llm repo. GitHub needs your own OAuth app and is expected to work, but hasn't been verified yet |
 | Where tools run | `useChat` in the browser | `createLLMHandler` on the server |
 
 Use server mode in production. Browser mode is the quick start when you have no backend.
@@ -177,7 +177,7 @@ Use `callbackUrl` to choose another path, and keep it stable: the provider remem
 
 #### Several servers: `useMCPServers`
 
-`useMCPServers` keeps a list of servers: a catalog you define, which the user turns on and off, and, with `allowCustom`, servers the user adds by URL. `mcpServers` from `vue-llm/mcp` has presets for the servers verified with vue-llm.
+`useMCPServers` keeps a list of servers: a catalog you define, which the user turns on and off, and, with `allowCustom`, servers the user adds by URL. `mcpServers` from `vue-llm/mcp` has presets for Notion, Linear, Hugging Face, DeepWiki and GitHub (see [which servers work in the browser](#which-servers-work-in-the-browser)).
 
 ```ts
 import { ref } from 'vue'
@@ -282,9 +282,13 @@ It returns `state`, `tools`, `error`, `authUrl`, `serverInfo` (name and version 
 
 #### Which servers work in the browser
 
-In browser mode the browser itself calls the MCP server, its sign-in metadata, registration and token endpoints. That works only when the server allows it with CORS and supports dynamic client registration and PKCE. Verified: **Notion**, **Linear**, **Hugging Face** and **DeepWiki** (no sign-in).
+In browser mode the browser itself calls the MCP server, its sign-in metadata, registration and token endpoints. That works only when the server allows it with CORS and supports dynamic client registration and PKCE.
 
-GitHub (no dynamic registration, no CORS on the token endpoint), Vercel, Stripe and Asana (no CORS on the MCP endpoint) don't work from a browser. They fail with `MCPUnsupportedServerError` and a message that points to server mode. `mcpServers.github` is shown in the list as `failed` in browser mode.
+- Verified with a real sign-in: **Notion** and **Linear**.
+- Checked for browser access (CORS and sign-in metadata): **Hugging Face** and **DeepWiki** (DeepWiki needs no sign-in).
+- As of November 2026 these servers don't allow browser access, so use server mode for them: GitHub (no dynamic client registration, no CORS on the token endpoint), Vercel and Stripe (no CORS on the MCP endpoint), Asana (no CORS on the MCP endpoint, no dynamic registration), Atlassian (CORS doesn't allow the `Authorization` header).
+
+When a server blocks the browser, the entry fails with `MCPUnsupportedServerError` and a message that points to server mode. `mcpServers.github` is shown in the list as `failed` in browser mode.
 
 Let servers connect first (`autoConnect`, or `enable()`) before you offer a "Sign in" button. A server that blocks browsers then shows `failed` right away, without opening a popup the user signs in to for nothing.
 
@@ -376,7 +380,7 @@ You don't write a callback page in server mode: the connector serves it at `${pu
 
 #### GitHub
 
-GitHub's MCP server has no dynamic client registration, so register an OAuth app yourself: on GitHub, **Settings → Developer settings → OAuth Apps → New OAuth App**, with the callback URL `${publicUrl}${basePath}/callback` (for the example above, `https://app.example.com/api/mcp/callback`). Then pass its credentials:
+GitHub through server mode is expected to work but hasn't been verified with vue-llm yet. GitHub's MCP server has no dynamic client registration, so register an OAuth app yourself: on GitHub, **Settings → Developer settings → OAuth Apps → New OAuth App**, with the callback URL `${publicUrl}${basePath}/callback` (for the example above, `https://app.example.com/api/mcp/callback`). Then pass its credentials:
 
 ```ts
 servers: [
@@ -386,7 +390,7 @@ servers: [
     oauth: {
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      scopes: ['repo', 'read:org'], // what your chat needs
+      scopes: ['…'], // optional: the GitHub scopes the tools you use need
     },
   },
 ],

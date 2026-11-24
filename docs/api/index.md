@@ -66,7 +66,7 @@ description: 'API reference for vue-llm: composables, providers, middleware, ser
 
 [`mcpTools`](/guide/mcp): tools of an MCP server for `useChat` and `createLLMHandler` (use with `@modelcontextprotocol/sdk`).
 
-[`handleMCPCallback`](/guide/mcp#the-callback-page): call it on the sign-in callback page. [`mcpServers`](/guide/mcp#several-servers-usemcpservers): presets of verified servers. `createMCPClient`: the dependency-free Streamable HTTP client behind `useMCP`, usable with `mcpTools`. Errors: [`MCPUnsupportedServerError`](/guide/mcp#which-servers-work-in-the-browser), `MCPHTTPError`, `MCPAuthError`, `MCPProtocolError`.
+[`handleMCPCallback`](/guide/mcp#the-callback-page): call it on the sign-in callback page. [`mcpServers`](/guide/mcp#several-servers-usemcpservers): presets for Notion, Linear, Hugging Face, DeepWiki and GitHub. `createMCPClient`: the dependency-free Streamable HTTP client behind `useMCP`, usable with `mcpTools`. Errors: [`MCPUnsupportedServerError`](/guide/mcp#which-servers-work-in-the-browser), `MCPHTTPError`, `MCPAuthError`, `MCPProtocolError`.
 
 ## `vue-llm/devtools`
 
