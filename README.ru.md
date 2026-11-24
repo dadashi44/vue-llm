@@ -28,7 +28,7 @@
 - **Стриминг** — SSE-парсер, дельты текста, рассуждений и вызовов инструментов
 - **Безопасность** — защита `dangerouslyAllowBrowser` бережёт API-ключи
 - **Chat UI** — готовый чат, код которого принадлежит вам: `npx shadcn-vue add https://vue-llm.js.org/r/chat.json`, плюс headless `usePromptInput` и `useAutoScroll`
-- **MCP** — инструменты любого MCP-сервера (поиск, файлы, GitHub, базы данных) в `useChat` и на сервере (`vue-llm/mcp`)
+- **MCP** — инструменты любого MCP-сервера (поиск, файлы, GitHub, базы данных) в `useChat` и на сервере (`vue-llm/mcp`); пользователи подключают свои серверы (Notion, Linear…) со входом через OAuth — `useMCP` / `useMCPServers`, прямо из браузера или через ваш бэкенд (`createMCPConnector`)
 - **Vue DevTools** — вкладка LLM со всеми чатами, таймлайном запросов, временем до первого токена, вызовами инструментов и расходом токенов (`vue-llm/devtools`)
 - **Nuxt-модуль** — автоимпорты, компоненты, DevTools в режиме разработки, серверный runtime config
 - **Ноль runtime-зависимостей** — только `vue` в peer-зависимостях (Vue 3.3+, композаблы работают и на Vue 2.7)

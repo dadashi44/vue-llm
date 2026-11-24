@@ -1,13 +1,13 @@
 // Type-checks the built package (dist/) the way a Node.js project with
 // moduleResolution "nodenext" sees it. Run `npm run build` first.
 // Regression test for https://github.com/dadashi44/vue-llm/issues/25
-import { useChat, useCompletion, useObject } from 'vue-llm'
+import { useChat, useCompletion, useObject, useMCP, useMCPServers } from 'vue-llm'
 import { createOpenAI, createAnthropic } from 'vue-llm/providers'
 import { MessageParts, StreamMarkdown, renderMarkdown } from 'vue-llm/components'
-import { createLLMHandler, streamToSSE } from 'vue-llm/server'
+import { createLLMHandler, streamToSSE, createMCPConnector } from 'vue-llm/server'
 import type { LLMProvider, ToolDefinition } from 'vue-llm'
 import { LLMDevtools } from 'vue-llm/devtools'
-import { mcpTools } from 'vue-llm/mcp'
+import { mcpTools, createMCPClient, handleMCPCallback, mcpServers, MCPUnsupportedServerError } from 'vue-llm/mcp'
 
 type IsAny<T> = 0 extends 1 & T ? true : false
 type NotAny<T> = IsAny<T> extends true ? never : T
@@ -26,5 +26,12 @@ assertTyped(createLLMHandler)
 assertTyped(streamToSSE)
 assertTyped(LLMDevtools)
 assertTyped(mcpTools)
+assertTyped(useMCP)
+assertTyped(useMCPServers)
+assertTyped(createMCPConnector)
+assertTyped(createMCPClient)
+assertTyped(handleMCPCallback)
+assertTyped(mcpServers)
+assertTyped(MCPUnsupportedServerError)
 assertTyped<LLMProvider>({} as LLMProvider)
 assertTyped<ToolDefinition>({} as ToolDefinition)
