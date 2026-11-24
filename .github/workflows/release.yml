@@ -36,7 +36,9 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run test:vue2
       - run: npm run build
+      - run: npm run typecheck:dist
       - name: Publish to npm
         run: npm publish --access public
       - name: GitHub release

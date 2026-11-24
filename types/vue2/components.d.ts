@@ -29,7 +29,7 @@ export interface MessagePartsSlotProps {
 export declare const StreamMarkdown: DefineComponent<StreamMarkdownProps>
 export declare const MessageParts: DefineComponent<
   MessagePartsProps,
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- DefineComponent's own defaults, to reach the emits parameter
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- placeholders to reach the emits parameter
   {}, {}, {}, {}, {}, {},
   { 'tool-result': (payload: { toolCallId: string; result: unknown }) => void }
 >

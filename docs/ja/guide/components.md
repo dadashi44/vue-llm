@@ -24,6 +24,8 @@ import 'vue-llm/style.css'
 
 props、スロット、`tool-result` イベントは同じです。render 関数では Vue 2 の方式で props を渡します：`h(MessageParts, { props: { message } })`。
 
+このエントリには、`package.json` の `exports` とモダンな構文（`?.`、`??`）を扱えるバンドラー（Vite や webpack 5 など）が必要です。webpack 4（Vue CLI 4、Nuxt 2）では解決できません。
+
 ## MessageParts
 
 メッセージ全体を描画します。Markdown テキスト、折りたたみ可能な推論、画像、ソース、そして独自のコンポーネントによるツール呼び出しを扱います。[Generative UI](./generative-ui) を参照してください。
@@ -53,6 +55,8 @@ props、スロット、`tool-result` イベントは同じです。render 関数
 ## StreamMarkdown
 
 モデルからの Markdown を、ストリーミング中に点滅するカーソル付きで描画します。
+
+`div.vue-llm-stream` を描画し、その中に `div.vue-llm-markdown` と、ストリーミング中は `span.vue-llm-cursor` が入ります。
 
 ```vue
 <script setup lang="ts">

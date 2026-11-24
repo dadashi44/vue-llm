@@ -19,7 +19,7 @@ export function vue2SFC(): Plugin {
       if (!id.endsWith('.vue')) return
 
       const source = code
-        .replace(/^defineSlots<\w+>\(\)\n/m, '')
+        .replace(/^[ \t]*defineSlots<\w+>\(\);?[ \t]*\r?\n/m, '')
         .replace(/(<template v-for="[^"]*")\s+:key="[^"]*"/g, '$1')
       const descriptor = parse({ source, filename: id, sourceMap: false })
       if (descriptor.styles.some(style => style.scoped)) {
@@ -28,12 +28,17 @@ export function vue2SFC(): Plugin {
       if (!descriptor.template) this.error(`${id}: a <template> is required`)
 
       const script = compileScript(descriptor, { id })
+      if (/\bdefineSlots\b/.test(script.content)) {
+        this.error(`${id}: write defineSlots as its own line \`defineSlots<TypeName>()\` so the Vue 2.7 build can remove it`)
+      }
       const template = compileTemplate({
         source: descriptor.template.content,
         filename: id,
         bindings: script.bindings,
         isProduction: true,
         prettify: false,
+        // What vue-loader and @vitejs/plugin-vue2 use, close to Vue 3's default
+        compilerOptions: { whitespace: 'condense' },
       })
       const problems = [...template.errors, ...template.tips].map(e => (typeof e === 'string' ? e : e.msg))
       if (problems.length) this.error(`${id}: Vue 2.7 template compiler:\n${problems.join('\n')}`)
@@ -45,7 +50,9 @@ export function vue2SFC(): Plugin {
         '_sfc_main.staticRenderFns = staticRenderFns',
         'export default _sfc_main',
       ].join('\n')
-      return transformWithEsbuild(module, `${id}.ts`, { loader: 'ts', target: 'es2020' })
+      const result = await transformWithEsbuild(module, `${id}.ts`, { loader: 'ts', target: 'es2020', sourcemap: false })
+      // No map: the generated module doesn't line up with the .vue source
+      return { code: result.code, map: null }
     },
   }
 }

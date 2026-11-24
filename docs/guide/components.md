@@ -24,6 +24,8 @@ import 'vue-llm/style.css'
 
 Props, slots and the `tool-result` event are the same. In a render function pass props the Vue 2 way: `h(MessageParts, { props: { message } })`.
 
+The entry needs a bundler that reads `package.json` `exports` and modern syntax (`?.`, `??`), such as Vite or webpack 5. On webpack 4 (Vue CLI 4, Nuxt 2) it can't be resolved.
+
 ## MessageParts
 
 Renders a whole message: Markdown text, collapsible reasoning, images, sources, and tool calls through your own components. See [Generative UI](./generative-ui).
@@ -53,6 +55,8 @@ The root element has `class="vue-llm-message"` and `data-role` set to the messag
 ## StreamMarkdown
 
 Renders Markdown from the model while it streams, with a blinking cursor.
+
+It renders `div.vue-llm-stream` holding `div.vue-llm-markdown` and, while streaming, `span.vue-llm-cursor`.
 
 ```vue
 <script setup lang="ts">

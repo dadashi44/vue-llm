@@ -24,6 +24,8 @@ import 'vue-llm/style.css'
 
 props、插槽和 `tool-result` 事件均相同。在渲染函数中请按 Vue 2 的方式传入 props：`h(MessageParts, { props: { message } })`。
 
+该入口需要能读取 `package.json` 中 `exports` 并支持现代语法（`?.`、`??`）的打包工具，例如 Vite 或 webpack 5。在 webpack 4（Vue CLI 4、Nuxt 2）上无法解析。
+
 ## MessageParts
 
 渲染整条消息：Markdown 文本、可折叠的推理过程、图片、来源，以及通过你自己的组件渲染的工具调用。参阅 [生成式 UI](./generative-ui)。
@@ -53,6 +55,8 @@ props、插槽和 `tool-result` 事件均相同。在渲染函数中请按 Vue 2
 ## StreamMarkdown
 
 在模型流式输出时渲染其 Markdown，并显示一个闪烁的光标。
+
+它渲染一个 `div.vue-llm-stream`，其中包含 `div.vue-llm-markdown`，流式输出期间还包含 `span.vue-llm-cursor`。
 
 ```vue
 <script setup lang="ts">
