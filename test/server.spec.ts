@@ -167,6 +167,31 @@ describe('createLLMHandler', () => {
     expect(provider.chat).not.toHaveBeenCalled()
   })
 
+  it('resolves a tools function once per request with the request', async () => {
+    const provider = createMockProvider([{ type: 'finish', finishReason: 'stop' }])
+    const tools = vi.fn(async (_request: Request) => [{ name: 'a', description: 'A', parameters: { type: 'object' as const } }])
+    const handler = createLLMHandler({ provider, tools })
+    const req = makeRequest({ messages: [{ role: 'user', content: 'hi' }] })
+    await (await handler(req)).text()
+    await (await handler(makeRequest({ messages: [{ role: 'user', content: 'hi' }] }))).text()
+
+    expect(tools).toHaveBeenCalledTimes(2)
+    expect(tools.mock.calls[0]![0]).toBe(req)
+    expect(vi.mocked(provider.chat).mock.calls[0]![0].tools).toEqual([
+      { name: 'a', description: 'A', parameters: { type: 'object' } },
+    ])
+  })
+
+  it('a rejected tools function returns 500 JSON like other handler errors', async () => {
+    const provider = createMockProvider([])
+    const handler = createLLMHandler({ provider, tools: async () => { throw new Error('no tools') } })
+    const res = await handler(makeRequest({ messages: [{ role: 'user', content: 'hi' }] }))
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toMatchObject({ error: 'no tools' })
+    expect(provider.chat).not.toHaveBeenCalled()
+  })
+
   it('returns 500 on provider error', async () => {
     const provider: LLMProvider = {
       id: 'mock',

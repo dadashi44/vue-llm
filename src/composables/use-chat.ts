@@ -23,7 +23,7 @@ export interface UseChatOptions {
   body?: MaybeRef<Record<string, unknown>>
   providerOptions?: Record<string, unknown>
   /** Tools with `execute` run automatically; others go to `onToolCall` or wait for `addToolResult` */
-  tools?: ChatTool[]
+  tools?: MaybeRefOrGetter<ChatTool[] | undefined>
   /** Return a result to resolve the call, or `undefined` to resolve it later with `addToolResult` */
   onToolCall?: (toolCall: { toolCallId: string; toolName: string; args: unknown }) => unknown | Promise<unknown>
   onFinish?: (message: UIMessage, context: { finishReason: FinishReason; usage?: Usage }) => void
@@ -180,13 +180,15 @@ export function useChat(options: UseChatOptions): UseChatReturn {
     return chatMessages
   }
 
-  const providerTools = options.tools?.map(({ name, description, parameters }) => ({ name, description, parameters }))
+  // Read at call time: tools (e.g. from MCP servers) can appear or disappear after setup
+  const currentTools = (): ChatTool[] | undefined => toValue(options.tools)
+  const findTool = (name: string): ChatTool | undefined => currentTools()?.find(t => t.name === name)
 
   const runTool = (
     toolCall: { toolCallId: string; toolName: string; args: unknown },
     { signal }: { signal: AbortSignal },
   ): unknown | Promise<unknown> => {
-    const tool = options.tools?.find(t => t.name === toolCall.toolName)
+    const tool = findTool(toolCall.toolName)
     if (tool?.execute) return tool.execute(toolCall.args, { toolCallId: toolCall.toolCallId, signal })
     return options.onToolCall?.(toolCall)
   }
@@ -215,7 +217,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
       const { stream } = await tracedChat(options.provider, {
         model: toValue(options.model),
         messages: chatMessages,
-        tools: providerTools,
+        tools: currentTools()?.map(({ name, description, parameters }) => ({ name, description, parameters })),
         signal,
         providerOptions: {
           ...options.providerOptions,
@@ -229,7 +231,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
         onFinish: options.onFinish,
         onError: options.onError,
         onToolCall: runTool,
-        canHandleTool: name => !!options.onToolCall || !!options.tools?.find(t => t.name === name)?.execute,
+        canHandleTool: name => !!options.onToolCall || !!findTool(name)?.execute,
       })
 
       // Stop when the model is done, or pause until the UI answers the remaining calls

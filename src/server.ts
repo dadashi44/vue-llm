@@ -10,7 +10,8 @@ export interface LLMHandlerOptions {
   provider: LLMProvider
   model?: string
   system?: string
-  tools?: ServerToolDefinition[]
+  /** A function runs once per request, so tools can depend on the caller */
+  tools?: ServerToolDefinition[] | ((request: Request) => ServerToolDefinition[] | Promise<ServerToolDefinition[]>)
   maxToolRoundtrips?: number
   maxMessages?: number
   rateLimit?: ServerRateLimitOptions
@@ -102,16 +103,18 @@ export function createLLMHandler(options: LLMHandlerOptions) {
 
       options.provider.validateConfig()
 
+      const tools = typeof options.tools === 'function' ? await options.tools(request) : options.tools
+
       const chatRequest = {
         model: body.model ?? options.model ?? 'gpt-4o',
-        tools: options.tools?.map(({ execute: _execute, ...tool }) => tool),
+        tools: tools?.map(({ execute: _execute, ...tool }) => tool),
         signal: request.signal,
       }
 
       const { stream } = await options.provider.chat({ ...chatRequest, messages })
 
       const executable = new Map(
-        (options.tools ?? []).filter(tool => tool.execute).map(tool => [tool.name, tool]),
+        (tools ?? []).filter(tool => tool.execute).map(tool => [tool.name, tool]),
       )
 
       const sseStream = streamToSSE(executable.size > 0
