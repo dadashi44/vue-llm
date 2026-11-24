@@ -414,6 +414,7 @@ function themeConfig(key: string, s: LocaleStrings, repoUrl: string): DefaultThe
           page('custom-backends'),
           page('mcp'),
           { text: 'Nuxt', link: `${p}guide/nuxt` },
+          { text: 'Nuxt UI', link: `${p}guide/nuxt-ui` },
           { text: 'DevTools', link: `${p}guide/devtools` },
           page('components'),
           page('chat-ui'),
