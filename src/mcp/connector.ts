@@ -2,14 +2,14 @@ import { createMCPAuth, type MCPAuth } from './auth.js'
 import { createMCPClient, type MCPHttpClient } from './client.js'
 import { decryptValue, encryptValue } from './crypto.js'
 import { MCPAuthError, MCPHTTPError, MCPProtocolError, MCPUnsupportedServerError } from './errors.js'
-import type { MCPServerPreset } from './servers.js'
+import type { MCPServerPreset, MCPToolFilter } from './servers.js'
 import { assertPublicHost, guardedFetch, loadNodeResolver, type MCPHostResolver } from './ssrf.js'
 import type { MCPAuthStorage } from './storage.js'
 import { mcpTools, type MCPTool } from './tools.js'
 import { checkUrl, idFromHost } from './url.js'
 
 /** A server in `createMCPConnector({ servers })` that isn't a preset */
-export interface MCPConnectorServer {
+export interface MCPConnectorServer extends MCPToolFilter {
   /** Stable id; also the prefix of the server's tools (`docs_search`) */
   id: string
   url: string
@@ -29,8 +29,8 @@ export interface MCPConnectorOptions {
    * default the origin of `publicUrl`. The first one receives the callback message
    */
   allowedOrigins?: string[]
-  /** The catalog every user can turn on */
-  servers: (MCPServerPreset | MCPConnectorServer)[]
+  /** The catalog every user can turn on; `include` / `exclude` limit a server's tools */
+  servers: ((MCPServerPreset & MCPToolFilter) | MCPConnectorServer)[]
   /**
    * Lets users add servers by URL. Default `false`. The backend then fetches URLs chosen by
    * users: private, loopback and link-local addresses are always refused, and without
@@ -97,6 +97,8 @@ interface Resolved {
   url: string
   custom: boolean
   oauth?: MCPServerPreset['oauth']
+  include?: string[]
+  exclude?: string[]
   /** Why this server can't be used through the backend */
   unsupported?: string
 }
@@ -331,6 +333,8 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
       url: s.url,
       custom: false,
       ...(s.oauth ? { oauth: s.oauth } : {}),
+      ...(s.include ? { include: s.include } : {}),
+      ...(s.exclude ? { exclude: s.exclude } : {}),
       ...(modes && !modes.includes('server') ? { unsupported: `${name} works only in browser mode` } : {}),
     })
   }
@@ -517,7 +521,7 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
     const prev = await previous?.catch(() => undefined)
     if (prev) {
       try {
-        const tools = await withDeadline(s.url, prev.deadline, signal => mcpTools(prev.client, { prefix: s.id, signal }))
+        const tools = await withDeadline(s.url, prev.deadline, signal => mcpTools(prev.client, { prefix: s.id, include: s.include, exclude: s.exclude, signal }))
         await record(userId, s.id, { state: 'connected' })
         return { ...prev, tools }
       } catch {
@@ -530,7 +534,7 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
       const connection = await withDeadline(s.url, deadline, async (signal) => {
         const result = await client.connect()
         if (result.status === 'needs-auth') return undefined
-        return { client, deadline, tools: await mcpTools(client, { prefix: s.id, signal }) }
+        return { client, deadline, tools: await mcpTools(client, { prefix: s.id, include: s.include, exclude: s.exclude, signal }) }
       })
       await record(userId, s.id, { state: connection ? 'connected' : 'needs-auth' })
       return connection

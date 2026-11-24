@@ -713,6 +713,17 @@ describe('createMCPConnector', () => {
     expect((await t.toolsFor()).map(tool => tool.name).sort()).toEqual(['gh_add', 'gh_echo'])
   })
 
+  it('include and exclude limit the tools of a server', async () => {
+    const t = setup({ servers: [{ ...open, include: ['echo'] }, { id: 'open2', url: 'https://open.test/mcp', exclude: ['echo'] }] })
+    await t.call('POST', '/servers/open/enable')
+    await t.call('POST', '/servers/open2/enable')
+    expect((await t.toolsFor()).map(tool => tool.name)).toEqual(['open_echo', 'open2_add'])
+    // A preset with a filter
+    const p = setup({ servers: [{ ...demo, include: ['add'] }] })
+    await p.signIn('demo')
+    expect((await p.toolsFor()).map(tool => tool.name)).toEqual(['demo_add'])
+  })
+
   it('reuses connections for a short time', async () => {
     const counting = vi.fn(testFetch)
     const t = setup({ fetch: counting })

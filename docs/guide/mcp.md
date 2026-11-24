@@ -251,6 +251,21 @@ The states are `idle` (off), `connecting`, `needs-auth`, `authorizing` (the popu
 
 Options: `catalog`, `allowCustom` (default `false`), `callbackUrl`, `clientName` (shown on the provider's consent screen; default `document.title`) and `storage`.
 
+#### Limiting tools {#limiting-tools}
+
+Every tool of every enabled server goes to the model, with its description and input schema. Notion (77 tools) and Linear (70) together already exceed OpenAI's limit of 128 tools per request, and each schema costs prompt tokens on every turn. Give a catalog entry `include` (only these tools) or `exclude` (everything except these), by the tools' names on the MCP server:
+
+```ts
+const connectors = useMCPServers({
+  catalog: [
+    { ...mcpServers.notion, include: ['notion-search', 'notion-fetch'] },
+    { id: 'docs', url: 'https://mcp.example.com/mcp', exclude: ['delete_page'] },
+  ],
+})
+```
+
+In server mode set them on the connector's `servers` the same way; the frontend's catalog doesn't filter there. Servers the user adds get all their tools.
+
 #### One server: `useMCP`
 
 For a single server, `useMCP` gives you the same state directly:
@@ -368,7 +383,7 @@ You don't write a callback page in server mode: the connector serves it at `${pu
 | `basePath` | Where `handler` is mounted, e.g. `'/api/mcp'` |
 | `publicUrl` | Required. The absolute origin of your app. The sign-in callback is `${publicUrl}${basePath}/callback`; it is never taken from request headers. |
 | `allowedOrigins` | Frontend origins allowed to call the routes (CORS with credentials, CSRF check). Default: the origin of `publicUrl` |
-| `servers` | The catalog every user can turn on: presets or `{ id, url, name?, oauth? }` |
+| `servers` | The catalog every user can turn on: presets or `{ id, url, name?, oauth? }`. Each takes `include` / `exclude` (see [Limiting tools](#limiting-tools)) |
 | `user` | Required. Returns the signed-in user's id for a request, or `null` (the routes then answer 401) |
 | `store` | Where tokens, registrations and each user's list live: any `get`/`set`/`remove`, sync or async. Nitro's `useStorage()` and unstorage fit as is. |
 | `secret` | Encrypts every stored value (AES-GCM). Required when `NODE_ENV` is `production`; in development, without it, values are stored in plain text and a warning is logged. |

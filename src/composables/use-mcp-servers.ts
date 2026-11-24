@@ -1,6 +1,6 @@
 import { computed, effectScope, getCurrentScope, markRaw, onScopeDispose, ref, shallowRef, type EffectScope, type Ref, type ShallowRef } from 'vue'
 import { MCPUnsupportedServerError } from '../mcp/errors.js'
-import type { MCPServerPreset } from '../mcp/servers.js'
+import type { MCPServerPreset, MCPToolFilter } from '../mcp/servers.js'
 import { resolveMCPStorage, type MCPStorageOption } from '../mcp/storage.js'
 import { checkUrl, idFromHost } from '../mcp/url.js'
 import type { MCPTool } from '../mcp/tools.js'
@@ -18,7 +18,7 @@ import {
 import { useMCP, type MCPState, type UseMCPReturn } from './use-mcp.js'
 
 /** A catalog entry that isn't a preset: any Streamable HTTP endpoint */
-export interface MCPServerEntry {
+export interface MCPServerEntry extends MCPToolFilter {
   /** Stable id; also the prefix of the server's tools (`docs_search`) */
   id: string
   url: string
@@ -29,9 +29,10 @@ export interface MCPServerEntry {
 export interface UseMCPServersOptions extends Partial<MCPServerModeOptions> {
   /**
    * Servers the user can turn on and off; all are off until the user enables them.
-   * Optional with `server`: the backend's list is the source of truth (shown until it loads)
+   * Optional with `server`: the backend's list is the source of truth (shown until it loads).
+   * `include` / `exclude` limit a server's tools (browser mode; in server mode set them on the connector)
    */
-  catalog?: (MCPServerPreset | MCPServerEntry)[]
+  catalog?: ((MCPServerPreset & MCPToolFilter) | MCPServerEntry)[]
   /** Lets the user add servers by URL with `add()`. Default `false`. With `server` the backend's `allowCustom` decides */
   allowCustom?: boolean
   /** OAuth redirect URI for every server; default `${location.origin}/mcp/callback` */
@@ -90,6 +91,8 @@ interface Entry {
   scope?: EffectScope
   /** Set when the entry can never connect here (server-only preset, invalid URL) */
   failure?: Error
+  include?: string[]
+  exclude?: string[]
   item: MCPServerItem
 }
 
@@ -145,7 +148,7 @@ export function useMCPServers(o: UseMCPServersOptions = {}): UseMCPServersReturn
    */
   const claimed = new Set<string>()
 
-  function makeEntry(init: { id: string; name: string; url: string; custom: boolean; failure?: Error }): Entry {
+  function makeEntry(init: { id: string; name: string; url: string; custom: boolean; failure?: Error } & MCPToolFilter): Entry {
     const entry: Entry = {
       ...init,
       enabled: ref(false),
@@ -197,7 +200,9 @@ export function useMCPServers(o: UseMCPServersOptions = {}): UseMCPServersReturn
     const failure = serverOnly
       ? new MCPUnsupportedServerError('cors', `${name} works only in server mode: connect it through createMCPConnector`)
       : undefined
-    entries.value = [...entries.value, makeEntry({ id: server.id, name, url: server.url, custom: false, failure })]
+    entries.value = [...entries.value, makeEntry({
+      id: server.id, name, url: server.url, custom: false, failure, include: server.include, exclude: server.exclude,
+    })]
   }
 
   /** Browser backend: one `useMCP` per server in its own scope, so it can be stopped alone */
@@ -207,6 +212,8 @@ export function useMCPServers(o: UseMCPServersOptions = {}): UseMCPServersReturn
       useMCP({
         url: entry.url,
         prefix: entry.id,
+        include: entry.include,
+        exclude: entry.exclude,
         clientName: o.clientName,
         callbackUrl: o.callbackUrl,
         storage,

@@ -1,3 +1,16 @@
+/**
+ * Which of a server's tools reach the model, by their name on the MCP server. A catalog entry,
+ * a connector server or a preset spread with it (`{ ...mcpServers.notion, include: [...] }`)
+ * takes these; servers with many tools can exceed a provider's tool limit (OpenAI: 128) and
+ * every tool's schema costs prompt tokens
+ */
+export interface MCPToolFilter {
+  /** Only these tools */
+  include?: string[]
+  /** Leave out these tools */
+  exclude?: string[]
+}
+
 /** A known remote MCP server, for `useMCPServers({ catalog })` and `createMCPConnector({ servers })` */
 export interface MCPServerPreset {
   /** Stable id; also the prefix of the server's tools (`notion_search`) */

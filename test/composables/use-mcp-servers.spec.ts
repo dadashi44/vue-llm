@@ -108,6 +108,22 @@ describe('useMCPServers', () => {
     expect(s.tools.value.map(t => t.name)).toEqual(['alpha_search', 'alpha_fetch', 'beta_search', 'beta_fetch'])
   })
 
+  it('include and exclude limit the tools of a catalog entry', async () => {
+    install()
+    const s = setup({
+      catalog: [
+        { id: 'alpha', url: A, include: ['search'] },
+        { id: 'beta', url: B, exclude: ['search'] },
+        { ...mcpServers.deepwiki, include: ['fetch'] },
+      ],
+    })
+    s.enable('alpha')
+    s.enable('beta')
+    s.enable('deepwiki')
+    await until(() => s.list.value.every(i => i.state === 'ready'))
+    expect(s.tools.value.map(t => t.name)).toEqual(['alpha_search', 'beta_fetch', 'deepwiki_fetch'])
+  })
+
   it('a server-only preset shows as unsupported in browser mode', () => {
     const fetchFn = install()
     const s = setup({ catalog: [mcpServers.github] })
