@@ -14,6 +14,7 @@ declare module 'node:http' {
   interface Server {
     listen(port: number, host: string, callback: () => void): Server
     close(callback?: () => void): Server
+    closeAllConnections(): void
     address(): unknown
   }
   function createServer(handler: (req: IncomingMessage, res: ServerResponse) => void): Server

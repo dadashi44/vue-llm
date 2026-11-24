@@ -41,6 +41,11 @@ export interface MCPConnectorOptions {
   clientName?: string
   /** Used for every outbound request (discovery, registration, tokens, MCP); default `globalThis.fetch` */
   fetch?: typeof fetch
+  /**
+   * Deadline in ms for connecting to one server (sign-in checks, token refresh, `initialize`,
+   * listing tools). A server that misses it is skipped and shown as `error`. Default `10_000`
+   */
+  timeout?: number
 }
 
 export type MCPConnectorState = 'connected' | 'needs-auth' | 'unsupported' | 'error'
@@ -89,11 +94,15 @@ interface StateIndex {
 interface Connection {
   client: MCPHttpClient
   tools: MCPTool[]
+  /** Set only while (re)connecting, so later tool calls aren't bound by it */
+  deadline: Deadline
 }
 
 interface CacheEntry {
   url: string
   expiresAt: number
+  /** The connect failed: kept for FAILURE_TTL_MS so the chat doesn't wait on it again */
+  failed: boolean
   result: Promise<Connection | undefined>
 }
 
@@ -107,6 +116,13 @@ const STATE_TTL_SECONDS = 600
  * be running their tools; stateful servers expire idle sessions themselves.
  */
 const CONNECTION_TTL_MS = 60_000
+/**
+ * A server that failed to connect (timeout, error, sign-in needed) is not retried by `toolsFor`
+ * for 30 s, so consecutive chat requests don't each wait for it. `enable`, `authorize`, the
+ * callback and `logout` clear it at once on this instance.
+ */
+const FAILURE_TTL_MS = 30_000
+const DEFAULT_TIMEOUT_MS = 10_000
 const CHANNEL = 'vue-llm:mcp'
 const MESSAGE_TYPE = 'vue-llm:mcp-callback'
 const ACTIONS = new Set(['enable', 'disable', 'authorize', 'logout'])
@@ -117,6 +133,33 @@ class MCPNetworkError extends Error {
     super(message)
     this.name = 'MCPNetworkError'
   }
+}
+
+class MCPTimeoutError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'MCPTimeoutError'
+  }
+}
+
+/** Aborts when either signal aborts */
+function anySignal(a: AbortSignal | null | undefined, b: AbortSignal): AbortSignal {
+  if (!a) return b
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([a, b])
+  const controller = new AbortController()
+  const abort = (s: AbortSignal) => () => controller.abort(s.reason)
+  if (a.aborted) controller.abort(a.reason)
+  else if (b.aborted) controller.abort(b.reason)
+  else {
+    a.addEventListener('abort', abort(a), { once: true })
+    b.addEventListener('abort', abort(b), { once: true })
+  }
+  return controller.signal
+}
+
+/** A deadline that the requests of one connect attempt follow while it is set */
+interface Deadline {
+  signal?: AbortSignal
 }
 
 class HttpError extends Error {
@@ -197,7 +240,7 @@ function json(body: unknown, status = 200): Response {
 function failure(error: unknown): { state: MCPConnectorState; error: string } {
   if (error instanceof MCPUnsupportedServerError) return { state: 'unsupported', error: error.message }
   if (error instanceof MCPAuthError) return { state: 'needs-auth', error: error.message }
-  if (error instanceof MCPNetworkError || error instanceof MCPHTTPError || error instanceof MCPProtocolError) {
+  if (error instanceof MCPTimeoutError || error instanceof MCPNetworkError || error instanceof MCPHTTPError || error instanceof MCPProtocolError) {
     return { state: 'error', error: error.message }
   }
   return { state: 'error', error: 'Unexpected error while connecting to the server' }
@@ -234,6 +277,7 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
   const frontendOrigin = o.allowedOrigins?.[0] ?? publicOrigin
   const clientName = o.clientName ?? new URL(publicUrl).host
   const storage = wrapStore(o.store, o.secret)
+  const timeoutMs = o.timeout ?? DEFAULT_TIMEOUT_MS
 
   const catalog: Resolved[] = []
   for (const s of o.servers) {
@@ -258,6 +302,37 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
     } catch (error) {
       if (error instanceof TypeError) throw new MCPNetworkError(`Could not reach ${hostOf(input)}`)
       throw error
+    }
+  }
+
+  /**
+   * Runs one connect step against `url` under the deadline: its requests are aborted through
+   * `deadline.signal`, and the race makes sure a step that ignores the signal can't block either.
+   */
+  async function withDeadline<T>(url: string, deadline: Deadline, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timedOut = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new MCPTimeoutError(`Timed out connecting to ${hostOf(url)}`)
+        controller.abort(error)
+        reject(error)
+      }, timeoutMs)
+    })
+    deadline.signal = controller.signal
+    try {
+      return await Promise.race([run(controller.signal), timedOut])
+    } finally {
+      clearTimeout(timer)
+      deadline.signal = undefined
+    }
+  }
+
+  /** `fetchFn` that also follows the deadline while one is set */
+  function deadlineFetch(deadline: Deadline): typeof fetch {
+    return (input, init) => {
+      const signal = deadline.signal
+      return fetchFn(input, signal ? { ...init, signal: anySignal(init?.signal, signal) } : init)
     }
   }
 
@@ -321,7 +396,7 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
 
   // --- MCP connections ---------------------------------------------------------------
 
-  function authFor(userId: string, s: Resolved): MCPAuth {
+  function authFor(userId: string, s: Resolved, deadline: Deadline = {}): MCPAuth {
     return createMCPAuth({
       serverUrl: s.url,
       storage,
@@ -329,14 +404,14 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
       keyPrefix: userPrefix(userId),
       clientName,
       redirectUri,
-      fetch: fetchFn,
+      fetch: deadlineFetch(deadline),
       ...(s.oauth ? { client: { client_id: s.oauth.clientId, client_secret: s.oauth.clientSecret } } : {}),
     })
   }
 
-  function clientFor(userId: string, s: Resolved): { auth: MCPAuth; client: MCPHttpClient } {
-    const auth = authFor(userId, s)
-    return { auth, client: createMCPClient({ url: s.url, auth, fetch: fetchFn }) }
+  function clientFor(userId: string, s: Resolved, deadline: Deadline = {}): { auth: MCPAuth; client: MCPHttpClient } {
+    const auth = authFor(userId, s, deadline)
+    return { auth, client: createMCPClient({ url: s.url, auth, fetch: deadlineFetch(deadline) }) }
   }
 
   const cache = new Map<string, CacheEntry>()
@@ -353,44 +428,49 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
     const prev = await previous?.catch(() => undefined)
     if (prev) {
       try {
-        const tools = await mcpTools(prev.client, { prefix: s.id })
+        const tools = await withDeadline(s.url, prev.deadline, signal => mcpTools(prev.client, { prefix: s.id, signal }))
         await record(userId, s.id, { state: 'connected' })
-        return { client: prev.client, tools }
+        return { ...prev, tools }
       } catch {
-        // The session or token went stale: reconnect below
+        // The session or token went stale (or the server stopped answering): reconnect below
       }
     }
-    const { client } = clientFor(userId, s)
+    const deadline: Deadline = {}
+    const { client } = clientFor(userId, s, deadline)
     try {
-      const result = await client.connect()
-      if (result.status === 'needs-auth') {
-        await record(userId, s.id, { state: 'needs-auth' })
-        return undefined
-      }
-      const tools = await mcpTools(client, { prefix: s.id })
-      await record(userId, s.id, { state: 'connected' })
-      return { client, tools }
+      const connection = await withDeadline(s.url, deadline, async (signal) => {
+        const result = await client.connect()
+        if (result.status === 'needs-auth') return undefined
+        return { client, deadline, tools: await mcpTools(client, { prefix: s.id, signal }) }
+      })
+      await record(userId, s.id, { state: connection ? 'connected' : 'needs-auth' })
+      return connection
     } catch (error) {
       await record(userId, s.id, failure(error))
       return undefined
     }
   }
 
-  /** The server's tools for this user, reusing a cached connection; `[]` when it can't connect */
-  async function connectServer(userId: string, s: Resolved): Promise<MCPTool[]> {
+  /**
+   * The server's tools for this user, reusing a cached connection; `[]` when it can't connect.
+   * `fresh` skips a cached failure (an explicit enable or add retries at once).
+   */
+  async function connectServer(userId: string, s: Resolved, fresh = false): Promise<MCPTool[]> {
     const key = cacheKey(userId, s.id)
     const hit = cache.get(key)
-    if (hit && hit.url === s.url && Date.now() < hit.expiresAt) return (await hit.result)?.tools ?? []
+    const usable = hit && hit.url === s.url && Date.now() < hit.expiresAt && !(fresh && hit.failed)
+    if (usable) return (await hit.result)?.tools ?? []
     const entry: CacheEntry = {
       url: s.url,
       expiresAt: Infinity, // shared by concurrent callers while connecting
+      failed: false,
       result: open(userId, s, hit?.url === s.url ? hit.result : undefined),
     }
     cache.set(key, entry)
     const connection = await entry.result.catch(() => undefined)
     if (cache.get(key) === entry) {
-      if (connection) entry.expiresAt = Date.now() + CONNECTION_TTL_MS
-      else cache.delete(key)
+      entry.failed = !connection
+      entry.expiresAt = Date.now() + (connection ? CONNECTION_TTL_MS : FAILURE_TTL_MS)
     }
     return connection?.tools ?? []
   }
@@ -444,7 +524,7 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
       delete d.states[next]
       return next
     }) as string
-    await connectServer(userId, { id, name, url: input, custom: true })
+    await connectServer(userId, { id, name, url: input, custom: true }, true)
     return json({ id, servers: entries(await load(userId)) }, 201)
   }
 
@@ -471,15 +551,19 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
       return true
     })
     invalidate(userId, s.id)
-    const { auth, client } = clientFor(userId, s)
+    const deadline: Deadline = {}
+    const { auth, client } = clientFor(userId, s, deadline)
     try {
-      const result = await client.connect()
-      if (result.status === 'ready') {
-        await client.close()
+      const started = await withDeadline(s.url, deadline, async () => {
+        const result = await client.connect()
+        return result.status === 'ready' ? undefined : auth.startAuthorization()
+      })
+      if (!started) {
+        void client.close()
         await record(userId, s.id, { state: 'connected' })
         return json({ url: null })
       }
-      const { url, state } = await auth.startAuthorization()
+      const { url, state } = started
       const index: StateIndex = { userId, serverId: s.id, expiresAt: Date.now() + STATE_TTL_SECONDS * 1000 }
       await storage.set(stateKey(state), JSON.stringify(index), { ttl: STATE_TTL_SECONDS })
       await record(userId, s.id, { state: 'needs-auth' })
@@ -499,7 +583,7 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
         d.enabled.push(s.id)
         return true
       })
-      if (!s.unsupported) await connectServer(userId, s)
+      if (!s.unsupported) await connectServer(userId, s, true)
     } else if (name === 'disable') {
       await update(userId, (d) => {
         if (!d.enabled.includes(s.id)) return false
@@ -529,12 +613,14 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
     const s = resolveAll(await load(index.userId)).find(x => x.id === id)
     if (!s) return callbackPage(400, { id, ok: false, error: `Unknown server "${id}"` })
     try {
-      await authFor(index.userId, s).finishAuthorization({
+      const deadline: Deadline = {}
+      const auth = authFor(index.userId, s, deadline)
+      await withDeadline(s.url, deadline, () => auth.finishAuthorization({
         state,
         code: url.searchParams.get('code') ?? undefined,
         error: url.searchParams.get('error') ?? undefined,
         errorDescription: url.searchParams.get('error_description') ?? undefined,
-      })
+      }))
     } catch (error) {
       const f = failure(error)
       await record(index.userId, id, f)

@@ -35,7 +35,11 @@ const world = {
   access: new Set<string>(),
   refresh: new Set<string>(),
   issued: [] as string[],
+  hangRequests: 0,
+  hanging: [] as ServerResponse[],
   reset() {
+    this.hangRequests = 0
+    for (const res of this.hanging.splice(0)) res.end()
     this.expiresIn = 3600
     this.registrations = 0
     this.tokenRequests = []
@@ -156,6 +160,12 @@ async function authServer(host: string, path: string, req: IncomingMessage, res:
 }
 
 async function mcpServer(host: string, path: string, req: IncomingMessage, res: ServerResponse) {
+  if (host === 'hang.test') {
+    // Accepts the request and never answers
+    world.hangRequests++
+    world.hanging.push(res)
+    return
+  }
   const protectedBy = host === 'open.test' ? undefined : host === 'gh.test' ? 'https://ghauth.test' : 'https://auth.test'
   if (path === '/.well-known/oauth-protected-resource/mcp' && protectedBy) {
     return json(res, 200, { resource: `https://${host}/mcp`, authorization_servers: [protectedBy] })
@@ -196,6 +206,8 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  world.reset()
+  http.closeAllConnections()
   await new Promise<void>(resolve => http.close(() => resolve()))
 })
 
@@ -208,6 +220,7 @@ const github: MCPServerPreset = { id: 'gh', name: 'GitHub', url: 'https://gh.tes
 const open = { id: 'open', name: 'Open', url: 'https://open.test/mcp' }
 const browserOnly: MCPServerPreset = { id: 'bo', name: 'Browser only', url: 'https://bo.test/mcp', modes: ['browser'] }
 const down = { id: 'down', name: 'Down', url: 'https://down.test/mcp' }
+const hang = { id: 'hang', name: 'Hang', url: 'https://hang.test/mcp' }
 
 function memoryStore() {
   const data = new Map<string, string>()
@@ -658,5 +671,41 @@ describe('createMCPConnector', () => {
     expect(requests[0].tools?.map(tool => tool.name).sort()).toEqual(['demo_add', 'demo_echo'])
     expect(text).toContain('mcp.test: from chat')
     for (const token of world.issued) expect(text).not.toContain(token)
+  })
+
+  it('a hanging server times out, is skipped, becomes error and is not retried at once', async () => {
+    const t = setup({ servers: [open, hang], timeout: 300 })
+    await t.call('POST', '/servers/open/enable')
+    let started = Date.now()
+    expect((await t.call('POST', '/servers/hang/enable')).status).toBe(200)
+    expect(Date.now() - started).toBeLessThan(2000)
+    const item = await t.entry('hang')
+    expect(item).toMatchObject({ enabled: true, state: 'error' })
+    expect(String(item!.error)).toMatch(/timed out connecting to hang\.test/i)
+
+    // A fresh instance on the same store: the toolsFor path, without any cached connection
+    const t2 = setup({ servers: [open, hang], timeout: 300, store: t.store })
+    started = Date.now()
+    const tools = await t2.toolsFor()
+    const elapsed = Date.now() - started
+    expect(tools.map(tool => tool.name).sort()).toEqual(['open_add', 'open_echo'])
+    expect(elapsed).toBeGreaterThanOrEqual(250)
+    expect(elapsed).toBeLessThan(2000)
+
+    const requests = world.hangRequests
+    started = Date.now()
+    expect((await t2.toolsFor()).map(tool => tool.name).sort()).toEqual(['open_add', 'open_echo'])
+    expect(Date.now() - started).toBeLessThan(200)
+    expect(world.hangRequests).toBe(requests)
+  })
+
+  it('authorize on a hanging server fails within the timeout', async () => {
+    const t = setup({ servers: [hang], timeout: 300 })
+    const started = Date.now()
+    const response = await t.call('POST', '/servers/hang/authorize')
+    expect(Date.now() - started).toBeLessThan(2000)
+    expect(response.status).toBe(502)
+    expect((await response.json()).error).toMatch(/timed out connecting to hang\.test/i)
+    expect(await t.entry('hang')).toMatchObject({ state: 'error' })
   })
 })
