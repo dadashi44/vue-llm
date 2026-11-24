@@ -298,3 +298,12 @@ function serializeChunk(chunk: ChatStreamChunk): string | null {
 export function createProxyProvider(baseURL: string): LLMProvider {
   return createSSEProvider({ id: 'proxy', name: 'Proxy', url: baseURL })
 }
+
+export { createMCPConnector } from './mcp/connector.js'
+export type {
+  MCPConnector,
+  MCPConnectorOptions,
+  MCPConnectorServer,
+  MCPConnectorEntry,
+  MCPConnectorState,
+} from './mcp/connector.js'
