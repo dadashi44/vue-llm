@@ -305,6 +305,55 @@ describe('useMCP', () => {
     expect(mcp.state.value).toBe('ready')
   })
 
+  it('keeps the popup open when authorize() is called again', async () => {
+    install({ validTokens: new Set() })
+    const { open, popup } = stubPopup() // the named window: same object both times
+    const mcp = setup({ autoConnect: false })
+    const first = mcp.authorize()
+    await until(() => mcp.authUrl.value !== undefined)
+    const firstUrl = mcp.authUrl.value!
+
+    const second = mcp.authorize()
+    await first
+    await until(() => mcp.authUrl.value !== undefined && mcp.authUrl.value !== firstUrl)
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(popup.closed).toBe(false)
+    expect(popup.location.href).toBe(mcp.authUrl.value)
+    // past the closed-window poll: the second run is still waiting
+    await new Promise(r => setTimeout(r, 1200))
+    expect(mcp.state.value).toBe('authorizing')
+
+    const state = new URL(mcp.authUrl.value!).searchParams.get('state')!
+    sendCallback({ state, code: 'c' })
+    await second
+    expect(mcp.state.value).toBe('ready')
+    expect(mcp.error.value).toBeUndefined()
+  })
+
+  it('disconnect during authorizing closes the popup', async () => {
+    install({ validTokens: new Set() })
+    const { popup } = stubPopup()
+    const mcp = setup({ autoConnect: false })
+    const done = mcp.authorize()
+    await until(() => mcp.authUrl.value !== undefined)
+    await mcp.disconnect()
+    await done
+    expect(popup.closed).toBe(true)
+    expect(mcp.state.value).toBe('idle')
+  })
+
+  it('disposing the scope during authorizing closes the popup', async () => {
+    install({ validTokens: new Set() })
+    const { popup } = stubPopup()
+    const mcp = setup({ autoConnect: false })
+    const done = mcp.authorize()
+    await until(() => mcp.authUrl.value !== undefined)
+    scope!.stop()
+    scope = undefined
+    await done
+    expect(popup.closed).toBe(true)
+  })
+
   it('disconnect aborts the wait for a blocked popup', async () => {
     install({ validTokens: new Set() })
     stubPopup(true)

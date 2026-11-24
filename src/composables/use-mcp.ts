@@ -72,6 +72,8 @@ export function useMCP(o: UseMCPOptions): UseMCPReturn {
   /** Bumped by every operation; async work from an older one is dropped */
   let generation = 0
   let authAbort: AbortController | undefined
+  /** The popup of the current sign-in, closed when that sign-in is cancelled */
+  let authPopup: Window | null = null
   let probed = false
   let unsupported: MCPUnsupportedServerError | undefined
 
@@ -89,9 +91,15 @@ export function useMCP(o: UseMCPOptions): UseMCPReturn {
     return session
   }
 
-  function abortAuthWait() {
+  /**
+   * Cancels the current sign-in and closes its popup, unless `keep` is that same window:
+   * `openAuthPopup()` returns the already open named popup to a new `authorize()`.
+   */
+  function abortAuthWait(keep: Window | null = null) {
     authAbort?.abort(new MCPAuthError('aborted', 'Sign-in was cancelled'))
     authAbort = undefined
+    if (authPopup && authPopup !== keep) closePopup(authPopup)
+    authPopup = null
   }
 
   function reset(next: MCPState) {
@@ -178,6 +186,7 @@ export function useMCP(o: UseMCPOptions): UseMCPReturn {
     if (!isClient()) return Promise.resolve()
     if (unsupported) {
       generation++
+      abortAuthWait()
       fail(unsupported)
       return Promise.resolve()
     }
@@ -188,16 +197,17 @@ export function useMCP(o: UseMCPOptions): UseMCPReturn {
 
   async function runAuthorization(popup: Window | null): Promise<void> {
     const run = ++generation
-    abortAuthWait()
+    abortAuthWait(popup)
     const controller = new AbortController()
     authAbort = controller
+    authPopup = popup
     reset('authorizing')
     error.value = undefined
     try {
       const { auth, client } = ensure()
       await probe(client)
       const { url, state: flowState } = await auth.startAuthorization()
-      if (run !== generation) return closePopup(popup)
+      if (run !== generation) return
       authUrl.value = url
       if (popup) popup.location.href = url
       // A blocked popup gets no closed-window detection: the user may open authUrl by hand
@@ -213,8 +223,10 @@ export function useMCP(o: UseMCPOptions): UseMCPReturn {
       authUrl.value = undefined
       await connect()
     } catch (e) {
-      closePopup(popup)
+      // A superseded run never closes the popup: a newer authorize() may have taken it over
       if (run !== generation) return
+      closePopup(popup)
+      if (authPopup === popup) authPopup = null
       if (e instanceof MCPAuthError) {
         reset('needs-auth')
         error.value = e
@@ -222,7 +234,10 @@ export function useMCP(o: UseMCPOptions): UseMCPReturn {
         fail(e)
       }
     } finally {
-      if (authAbort === controller) authAbort = undefined
+      if (authAbort === controller) {
+        authAbort = undefined
+        authPopup = null
+      }
     }
   }
 
