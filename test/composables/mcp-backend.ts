@@ -2,7 +2,8 @@ import { vi } from 'vitest'
 
 /** A fake `createMCPConnector` under `/api/mcp`, for the server-mode composable specs */
 
-export const AUTH_URL = 'https://auth.test/authorize?client_id=c&state=s'
+export const AUTH_STATE = 's'
+export const AUTH_URL = `https://auth.test/authorize?client_id=c&state=${AUTH_STATE}`
 
 export interface FakeEntry {
   id: string
@@ -29,7 +30,13 @@ export function fakeBackend(events: string[] = []) {
     { id: 'bad', name: 'Bad', url: 'https://bad.test/mcp', custom: false, enabled: true, state: 'error', error: 'Timed out connecting to bad.test' },
     { id: 'bo', name: 'Browser only', url: 'https://bo.test/mcp', custom: false, enabled: false, state: 'unsupported', error: 'Browser only works only in browser mode' },
   ]
-  const world = { servers, authorizeUrl: AUTH_URL as string | null, requests: [] as BackendRequest[] }
+  const world = {
+    servers,
+    authorizeUrl: AUTH_URL as string | null,
+    requests: [] as BackendRequest[],
+    /** Bodies of POST /servers/:id/complete */
+    completes: [] as { id: string; body: Record<string, unknown> }[],
+  }
   const find = (id: string) => servers.find(s => s.id === id)
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
@@ -54,12 +61,19 @@ export function fakeBackend(events: string[] = []) {
       servers.splice(index, 1)
       return json({ servers })
     }
-    m = /^\/servers\/([^/]+)\/(enable|disable|authorize|logout)$/.exec(path)
+    m = /^\/servers\/([^/]+)\/(enable|disable|authorize|complete|logout)$/.exec(path)
     const s = m && find(decodeURIComponent(m[1]))
     if (m && s && method === 'POST') {
       if (m[2] === 'authorize') {
         s.enabled = true
-        return json({ url: world.authorizeUrl })
+        return json(world.authorizeUrl === null ? { url: null } : { url: world.authorizeUrl, state: AUTH_STATE })
+      }
+      if (m[2] === 'complete') {
+        const data = JSON.parse(body!) as Record<string, unknown>
+        world.completes.push({ id: s.id, body: data })
+        if (data.state !== AUTH_STATE) return json({ error: 'This sign-in expired or was already used; try again' }, 400)
+        s.state = data.code ? 'connected' : 'needs-auth'
+        return json({ servers })
       }
       if (m[2] === 'enable') s.enabled = true
       if (m[2] === 'disable') s.enabled = false

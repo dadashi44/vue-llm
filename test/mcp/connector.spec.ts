@@ -255,10 +255,14 @@ function setup(over: Partial<MCPConnectorOptions> = {}) {
     ...over,
   })
   const bodies: string[] = []
+  /** Bodies of every response but the callback page (which relays the code to the opener by design) */
+  const apiBodies: string[] = []
 
   async function handle(request: Request): Promise<Response> {
     const response = await connector.handler(request)
-    bodies.push(await response.clone().text())
+    const text = await response.clone().text()
+    bodies.push(text)
+    if (new URL(request.url).pathname !== '/api/mcp/callback') apiBodies.push(text)
     return response
   }
 
@@ -286,16 +290,39 @@ function setup(over: Partial<MCPConnectorOptions> = {}) {
     return (await list(who)).find(s => s.id === id)
   }
 
-  /** POST /authorize, follow the provider redirect, then hit the callback */
-  async function signIn(id: string, who = 'alice') {
+  /** POST /authorize and follow the provider redirect: the callback page is not loaded yet */
+  async function startSignIn(id: string, who = 'alice') {
     const response = await call('POST', `/servers/${id}/authorize`, { user: who })
     expect(response.status).toBe(200)
-    const { url } = await response.json() as { url: string }
+    const { url, state } = await response.json() as { url: string; state: string }
     const redirect = await testFetch(url, { redirect: 'manual' })
     expect(redirect.status).toBe(302)
-    const callbackUrl = redirect.headers.get('Location')!
+    return { authorizeUrl: url, state, callbackUrl: redirect.headers.get('Location')! }
+  }
+
+  /** The callback page and the message it posts to the opener */
+  async function loadCallback(callbackUrl: string) {
     const callback = await handle(new Request(callbackUrl))
-    return { authorizeUrl: url, callbackUrl, callback }
+    const html = await callback.clone().text()
+    const match = /var message = (\{.*?\});/.exec(html)
+    const message = match ? JSON.parse(match[1]) as Record<string, string | undefined> : undefined
+    return { callback, html, message }
+  }
+
+  /** What the frontend does with the callback message: POST /servers/:id/complete */
+  function complete(id: string, message: Record<string, unknown>, who: string | null = 'alice') {
+    const { state, code, error, errorDescription } = message
+    return call('POST', `/servers/${id}/complete`, { user: who, body: { state, code, error, errorDescription } })
+  }
+
+  /** The whole flow: authorize, provider redirect, callback page, then /complete as the frontend does */
+  async function signIn(id: string, who = 'alice') {
+    const started = await startSignIn(id, who)
+    const { callback, message } = await loadCallback(started.callbackUrl)
+    expect(message).toMatchObject({ id, state: started.state })
+    const completed = await complete(id, message!, who)
+    expect(completed.status).toBe(200)
+    return { ...started, callback, completed }
   }
 
   function toolsFor(who: string | null = 'alice') {
@@ -304,7 +331,7 @@ function setup(over: Partial<MCPConnectorOptions> = {}) {
     return connector.toolsFor(new Request(`${APP}/api/chat`, { method: 'POST', headers }))
   }
 
-  return { connector, data, store, user, call, list, entry, signIn, toolsFor, bodies, handle }
+  return { connector, data, store, user, call, list, entry, startSignIn, loadCallback, complete, signIn, toolsFor, bodies, apiBodies, handle }
 }
 
 const ctx = { toolCallId: 'call_1' }
@@ -335,74 +362,132 @@ describe('createMCPConnector', () => {
     ])
   })
 
-  it('authorize returns the provider URL and stores a pending state for the user', async () => {
+  it('authorize returns the provider URL and its state, and stores a pending state for the user', async () => {
     const t = setup()
     const response = await t.call('POST', '/servers/demo/authorize')
     expect(response.status).toBe(200)
-    const { url } = await response.json() as { url: string }
+    const { url, state: returned } = await response.json() as { url: string; state: string }
     const authorize = new URL(url)
     expect(authorize.origin + authorize.pathname).toBe('https://auth.test/authorize')
     expect(authorize.searchParams.get('redirect_uri')).toBe(`${APP}/api/mcp/callback`)
     expect(authorize.searchParams.get('client_id')).toBe('dyn-1')
     expect(authorize.searchParams.get('resource')).toBe('https://mcp.test/mcp')
     const state = authorize.searchParams.get('state')!
+    expect(returned).toBe(state)
     expect(t.data.has(`state:${state}`)).toBe(true)
     expect(t.data.has(`u:alice:pending:${state}`)).toBe(true)
     expect(await t.entry('demo')).toMatchObject({ enabled: true, state: 'needs-auth' })
   })
 
-  it('callback completes the flow without calling user()', async () => {
+  it('the callback page alone stores nothing: it relays the response and keeps the state', async () => {
     const t = setup()
-    const response = await t.call('POST', '/servers/demo/authorize')
-    const { url } = await response.json() as { url: string }
-    const location = (await testFetch(url, { redirect: 'manual' })).headers.get('Location')!
+    const { state, callbackUrl } = await t.startSignIn('demo')
     const calls = t.user.mock.calls.length
-    const callback = await t.handle(new Request(location))
+    const { callback, message } = await t.loadCallback(callbackUrl)
     expect(t.user.mock.calls.length).toBe(calls)
     expect(callback.status).toBe(200)
-    expect(await t.entry('demo')).toMatchObject({ enabled: true, state: 'connected' })
+    expect(message).toEqual({
+      type: 'vue-llm:mcp-callback',
+      id: 'demo',
+      state,
+      code: new URL(callbackUrl).searchParams.get('code'),
+    })
+    expect(world.tokenRequests).toHaveLength(0)
+    expect([...t.data.keys()].some(k => k.includes(':tokens:'))).toBe(false)
+    expect(t.data.has(`state:${state}`)).toBe(true)
+    expect(t.data.has(`u:alice:pending:${state}`)).toBe(true)
+    expect(await t.entry('demo')).toMatchObject({ state: 'needs-auth' })
+  })
+
+  it('/complete by the user who started the flow finishes it and returns the servers', async () => {
+    const t = setup()
+    const { completed } = await t.signIn('demo')
+    const body = await completed.json() as { servers: Array<Record<string, unknown>> }
+    expect(body.servers.find(s => s.id === 'demo')).toMatchObject({ enabled: true, state: 'connected' })
+    expect(t.data.has('u:alice:tokens:https://mcp.test/mcp')).toBe(true)
     expect([...t.data.keys()].some(k => k.startsWith('state:'))).toBe(false)
     expect([...t.data.keys()].some(k => k.includes(':pending:'))).toBe(false)
   })
 
+  it('/complete with another user\'s session is refused and stores no tokens for either user', async () => {
+    const t = setup()
+    // The attacker starts the flow; the victim approves and her browser loads the callback page
+    const { state, callbackUrl } = await t.startSignIn('demo', 'mallory')
+    const { message } = await t.loadCallback(callbackUrl)
+    await t.call('POST', '/servers/demo/enable', { user: 'victim' })
+    const refused = await t.complete('demo', message!, 'victim')
+    expect(refused.status).toBe(403)
+    expect(world.tokenRequests).toHaveLength(0)
+    expect([...t.data.keys()].some(k => k.includes(':tokens:'))).toBe(false)
+    expect(await t.entry('demo', 'mallory')).toMatchObject({ state: 'needs-auth' })
+    expect(await t.entry('demo', 'victim')).toMatchObject({ state: 'needs-auth' })
+    // Not consumed by the refusal
+    expect(t.data.has(`state:${state}`)).toBe(true)
+  })
+
+  it('/complete refuses a state started for another server', async () => {
+    const t = setup()
+    const { state, callbackUrl } = await t.startSignIn('demo')
+    await t.call('POST', '/servers/open/enable')
+    const { message } = await t.loadCallback(callbackUrl)
+    const refused = await t.complete('open', message!)
+    expect(refused.status).toBe(403)
+    expect(world.tokenRequests).toHaveLength(0)
+    expect(t.data.has(`state:${state}`)).toBe(true)
+  })
+
+  it('/complete rejects a reused or unknown state', async () => {
+    const t = setup()
+    const { callbackUrl } = await t.signIn('demo')
+    const { message } = await t.loadCallback(callbackUrl)
+    const again = await t.complete('demo', message!)
+    expect(again.status).toBe(400)
+    expect(world.tokenRequests).toHaveLength(1)
+    expect((await t.complete('demo', { state: 'nope', code: 'x' })).status).toBe(400)
+    expect((await t.call('POST', '/servers/demo/complete', { body: { code: 'x' } })).status).toBe(400)
+  })
+
   it('returns HTML that posts to the frontend origin', async () => {
     const t = setup({ allowedOrigins: ['https://front.example.com', APP] })
-    const { callback, callbackUrl } = await t.signIn('demo')
+    const { callbackUrl } = await t.startSignIn('demo')
+    const { callback, html } = await t.loadCallback(callbackUrl)
     expect(callback.headers.get('Content-Type')).toBe('text/html; charset=utf-8')
     expect(callback.headers.get('Cache-Control')).toBe('no-store')
-    const html = await callback.text()
+    expect(callback.headers.get('Referrer-Policy')).toBe('no-referrer')
+    expect(callback.headers.get('Content-Security-Policy')).toMatch(/script-src 'sha256-[^']+'.*frame-ancestors 'none'/)
     expect(html).toContain('postMessage')
     expect(html).toContain('"https://front.example.com"')
-    expect(html).toContain('BroadcastChannel')
-    expect(html).toContain('"vue-llm:mcp"')
     expect(html).toContain('window.close()')
-    const message = JSON.parse(/var message = (\{.*?\});/.exec(html)![1])
-    expect(message).toEqual({ type: 'vue-llm:mcp-callback', id: 'demo', ok: true })
-    expect(html).not.toContain(new URL(callbackUrl).searchParams.get('code'))
+    // The callback page is on another origin than the frontend: no BroadcastChannel
+    expect(html).not.toContain('BroadcastChannel')
+
+    const same = setup()
+    const { html: sameHtml } = await same.loadCallback((await same.startSignIn('demo')).callbackUrl)
+    expect(sameHtml).toContain('BroadcastChannel')
+    expect(sameHtml).toContain('"vue-llm:mcp"')
   })
 
   it('callback escapes provider-controlled text', async () => {
     const t = setup()
     const response = await t.call('POST', '/servers/demo/authorize')
     const state = new URL((await response.json() as { url: string }).url).searchParams.get('state')!
-    const callback = await t.handle(new Request(
+    const { html, message } = await t.loadCallback(
       `${APP}/api/mcp/callback?state=${state}&error=access_denied&error_description=${encodeURIComponent('</script><script>alert(1)</script>\u2028')}`,
-    ))
-    const html = await callback.text()
+    )
     expect(html).not.toContain('</script><script>alert(1)')
     expect(html).not.toContain('\u2028')
     expect(html).toContain('\\u003c/script')
+    expect(message).toMatchObject({ id: 'demo', state, error: 'access_denied' })
+    expect((await t.complete('demo', message!)).status).toBe(200)
     expect(await t.entry('demo')).toMatchObject({ state: 'needs-auth', error: expect.stringContaining('access_denied') })
   })
 
-  it('callback rejects a reused state', async () => {
+  it('callback with an unknown state shows an error page', async () => {
     const t = setup()
-    const { callbackUrl } = await t.signIn('demo')
-    const again = await t.handle(new Request(callbackUrl))
-    expect(again.status).toBe(400)
-    const html = await again.text()
-    expect(html).toContain('"ok":false')
-    expect(world.tokenRequests).toHaveLength(1)
+    const { callback, message } = await t.loadCallback(`${APP}/api/mcp/callback?state=nope&code=x`)
+    expect(callback.status).toBe(400)
+    expect(message).not.toHaveProperty('code')
+    expect(message).not.toHaveProperty('id')
   })
 
   it('toolsFor returns prefixed tools for connected servers only', async () => {
@@ -499,11 +584,15 @@ describe('createMCPConnector', () => {
     await t.call('POST', '/servers/gh/logout')
     await t.call('DELETE', '/servers/mcp2')
     expect(world.issued.length).toBeGreaterThanOrEqual(6)
-    expect(t.bodies.length).toBeGreaterThanOrEqual(12)
+    expect(t.apiBodies.length).toBeGreaterThanOrEqual(12)
     for (const body of t.bodies) {
-      for (const secret of [...world.issued, ...world.issuedCodes, GH_CLIENT.clientSecret]) {
+      for (const secret of [...world.issued, GH_CLIENT.clientSecret]) {
         expect(body).not.toContain(secret)
       }
+    }
+    // Authorization codes reach only the callback page, which relays them to the opener
+    for (const body of t.apiBodies) {
+      for (const code of world.issuedCodes) expect(body).not.toContain(code)
     }
   })
 
@@ -517,6 +606,7 @@ describe('createMCPConnector', () => {
       ['POST', '/servers/demo/disable'],
       ['POST', '/servers/demo/authorize'],
       ['POST', '/servers/demo/logout'],
+      ['POST', '/servers/demo/complete', { state: 'x', code: 'y' }],
     ]
     for (const [method, path, body] of routes) {
       const response = await t.call(method, path, { user: null, body })
@@ -787,6 +877,7 @@ describe('createMCPConnector security', () => {
       ['POST', '/servers/demo/disable'],
       ['POST', '/servers/demo/authorize'],
       ['POST', '/servers/demo/logout'],
+      ['POST', '/servers/demo/complete', { state: 'x', code: 'y' }],
     ]
     for (const origin of ['https://evil.example.com', 'null', null]) {
       for (const [method, path, body] of routes) {

@@ -3,7 +3,7 @@ import { effectScope, ref, type EffectScope } from 'vue'
 import { useMCPServers, type UseMCPServersOptions, type UseMCPServersReturn } from '../../src/composables/use-mcp-servers.js'
 import { MCPUnsupportedServerError } from '../../src/mcp/errors.js'
 import { mcpServers } from '../../src/mcp/servers.js'
-import { AUTH_URL, fakeBackend, sendCallback, stubPopup } from './mcp-backend.js'
+import { AUTH_STATE, AUTH_URL, fakeBackend, sendCallback, stubPopup } from './mcp-backend.js'
 
 const KEY = 'vue-llm:mcp:'
 const A = 'https://mcp.alpha.dev/mcp'
@@ -317,13 +317,18 @@ describe('useMCPServers server mode', () => {
     expect(events.slice(0, 2)).toEqual(['open', 'POST /servers/notion/authorize'])
     expect(item(s, 'notion')).toMatchObject({ enabled: true, state: 'authorizing', authUrl: AUTH_URL })
 
-    backend.find('notion')!.state = 'connected'
-    sendCallback({ id: 'other', ok: true })
+    // Another server's message, or one for another flow (state), is ignored
+    sendCallback({ id: 'other', state: AUTH_STATE, code: 'c' })
+    sendCallback({ id: 'notion', state: 'someone-else', code: 'c' })
     await new Promise(resolve => setTimeout(resolve, 20))
     expect(item(s, 'notion').state).toBe('authorizing')
+    expect(backend.world.completes).toEqual([])
     const gets = backend.gets()
-    sendCallback({ id: 'notion', ok: true })
+    sendCallback({ id: 'notion', state: AUTH_STATE, code: 'the-code' })
     await done
+    // The page relays the response; the frontend completes the flow with its own session
+    expect(backend.world.completes).toEqual([{ id: 'notion', body: { state: AUTH_STATE, code: 'the-code' } }])
+    expect(events.indexOf('POST /servers/notion/complete')).toBeLessThan(events.lastIndexOf('GET /servers'))
     expect(backend.gets()).toBeGreaterThan(gets)
     expect(item(s, 'notion')).toMatchObject({ enabled: true, state: 'ready', authUrl: undefined })
   })

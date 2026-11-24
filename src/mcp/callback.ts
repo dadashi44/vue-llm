@@ -12,7 +12,6 @@ export interface MCPCallbackMessage {
   error?: string
   errorDescription?: string
   id?: string
-  ok?: boolean
 }
 
 /**

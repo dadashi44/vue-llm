@@ -361,7 +361,7 @@ The same template works. `connectors.tools` stays empty, because the tools run o
 
 If your API uses bearer tokens instead of cookies, pass `headers` (a plain object, ref or getter), and `fetch` if you need your own. `credentials` defaults to `'include'`.
 
-You don't write a callback page in server mode: the connector serves it at `${publicUrl}${basePath}/callback`.
+You don't write a callback page in server mode: the connector serves it at `${publicUrl}${basePath}/callback`. The page doesn't finish the sign-in itself. It hands the provider's response to the window that opened it, and `useMCP` / `useMCPServers` send it to `POST {server}/servers/:id/complete` with the user's session. The popup must keep its opener; when `publicUrl` is on the frontend's origin, a `BroadcastChannel` message is sent as well.
 
 | Option | Description |
 |--------|-------------|
@@ -407,3 +407,4 @@ The same `oauth` option works for any server that requires a pre-registered clie
   - On edge runtimes without `node:dns` (Cloudflare Workers, edge functions), `allowCustom` requires `allowHosts`: without it, adding a server fails with an error that says so.
 - **Sign-in metadata must be exact.** The `issuer` in a provider's authorization-server metadata must match the authorization server URL exactly (RFC 8414); a server that gets this wrong can't be signed in to.
 - In server mode the routes check the `Origin` header against `allowedOrigins` (changes without one are refused) and require a signed-in `user`. Provider tokens never appear in a response to the browser.
+- **A sign-in is bound to the user who started it.** The callback page only passes the provider's response to the opener; the backend saves tokens only when `POST /servers/:id/complete` comes from the same `user` (and for the same server) that called `authorize`. If someone sends another person their sign-in link, that person's account isn't linked to the sender's user.

@@ -3,7 +3,7 @@ import * as Vue from 'vue'
 import { effectScope, type EffectScope } from 'vue'
 import { useMCP, type UseMCPBrowserOptions, type UseMCPReturn } from '../../src/composables/use-mcp.js'
 import { MCPAuthError, MCPUnsupportedServerError } from '../../src/mcp/errors.js'
-import { AUTH_URL, fakeBackend, sendCallback as sendServerCallback, stubPopup as stubServerPopup } from './mcp-backend.js'
+import { AUTH_STATE, AUTH_URL, fakeBackend, sendCallback as sendServerCallback, stubPopup as stubServerPopup } from './mcp-backend.js'
 
 const SERVER = 'https://mcp.example.com/mcp'
 const ISSUER = 'https://auth.example.com'
@@ -529,9 +529,26 @@ describe('useMCP server mode', () => {
     expect(log.slice(0, 2)).toEqual(['open', 'POST /servers/notion/authorize'])
     expect(mcp.state.value).toBe('authorizing')
     expect(mcp.authUrl.value).toBe(AUTH_URL)
-    backend.find('notion')!.state = 'connected'
-    sendServerCallback({ id: 'notion', ok: true })
+    sendServerCallback({ id: 'notion', state: 'other-flow', code: 'x' })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(backend.world.completes).toEqual([])
+    sendServerCallback({ id: 'notion', state: AUTH_STATE, error: 'access_denied', errorDescription: 'no' })
     await done
+    expect(backend.world.completes).toEqual([
+      { id: 'notion', body: { state: AUTH_STATE, error: 'access_denied', errorDescription: 'no' } },
+    ])
+    expect(log.slice(-2)).toEqual(['POST /servers/notion/complete', 'GET /servers'])
+    expect(mcp.state.value).toBe('needs-auth')
+  })
+
+  it('completes the sign-in through the backend and becomes ready', async () => {
+    const { mcp, backend, log } = serverSetup('notion', { autoConnect: false })
+    const { popup } = stubServerPopup(log)
+    const done = mcp.authorize()
+    await until(() => popup.location.href === AUTH_URL)
+    sendServerCallback({ id: 'notion', state: AUTH_STATE, code: 'the-code' })
+    await done
+    expect(backend.world.completes).toEqual([{ id: 'notion', body: { state: AUTH_STATE, code: 'the-code' } }])
     expect(log.at(-1)).toBe('GET /servers')
     expect(mcp.state.value).toBe('ready')
     expect(mcp.authUrl.value).toBeUndefined()

@@ -1,4 +1,4 @@
-import { waitForMCPCallback } from '../mcp/callback.js'
+import { waitForMCPCallback, type MCPCallbackMessage } from '../mcp/callback.js'
 import { MCPAuthError } from '../mcp/errors.js'
 import { toValue, type MaybeRefOrGetter } from '../utils/vue.js'
 import type { MCPState } from './use-mcp.js'
@@ -31,8 +31,10 @@ export interface MCPBackendAPI {
   add(body: { url: string; name?: string }): Promise<{ id: string; servers: MCPBackendEntry[] }>
   remove(id: string): Promise<MCPBackendEntry[]>
   action(id: string, verb: 'enable' | 'disable' | 'logout'): Promise<MCPBackendEntry[]>
-  /** The provider's sign-in URL, or `null` when the server is already connected */
-  authorize(id: string): Promise<string | null>
+  /** The provider's sign-in URL and the flow's `state`, or `null` when the server is already connected */
+  authorize(id: string): Promise<{ url: string; state: string } | null>
+  /** Finishes a sign-in with the authorization response relayed by the callback page */
+  complete(id: string, body: { state: string; code?: string; error?: string; errorDescription?: string }): Promise<MCPBackendEntry[]>
 }
 
 function servers(data: unknown): MCPBackendEntry[] {
@@ -76,9 +78,12 @@ export function createMCPBackend(o: MCPServerModeOptions): MCPBackendAPI {
     remove: async id => servers(await request('DELETE', path(id))),
     action: async (id, verb) => servers(await request('POST', `${path(id)}/${verb}`)),
     async authorize(id) {
-      const url = (await request('POST', `${path(id)}/authorize`) as { url?: unknown } | undefined)?.url
-      return typeof url === 'string' ? url : null
+      const data = await request('POST', `${path(id)}/authorize`) as { url?: unknown; state?: unknown } | undefined
+      if (typeof data?.url !== 'string') return null
+      if (typeof data.state !== 'string' || !data.state) throw new Error('MCP backend: unexpected response')
+      return { url: data.url, state: data.state }
     },
+    complete: async (id, body) => servers(await request('POST', `${path(id)}/complete`, body)),
   }
 }
 
@@ -106,20 +111,24 @@ export function closePopup(popup: Window | null) {
 /**
  * Signs in to server `id` through the backend in `popup`, which the caller opened with
  * `about:blank` within the user gesture: POSTs `/authorize`, navigates the popup to the
- * provider and waits for the callback page's message or for the popup to close. Resolves when
- * the flow is over (the caller then refetches the state); rejects when a request fails or `signal` aborts.
+ * provider and waits for the callback page's message (same `id` and `state`) or for the popup
+ * to close. The callback page completes nothing: the message's authorization response is
+ * POSTed to `/complete` with this user's session, so the backend can check that the flow is
+ * theirs. Resolves when the flow is over (the caller then refetches the state); rejects when
+ * a request fails or `signal` aborts.
  */
 export async function authorizeThroughBackend(
   api: MCPBackendAPI,
   o: { id: string; server: string; popup: Window | null; signal: AbortSignal; onUrl: (url: string) => void },
 ): Promise<void> {
-  const url = await api.authorize(o.id)
+  const started = await api.authorize(o.id)
   if (o.signal.aborted) throw o.signal.reason
-  if (url === null) {
+  if (started === null) {
     // Already connected: no sign-in needed
     closePopup(o.popup)
     return
   }
+  const { url, state } = started
   o.onUrl(url)
   if (o.popup) o.popup.location.href = url
   let origin: string | undefined
@@ -128,14 +137,26 @@ export async function authorizeThroughBackend(
   } catch {
     origin = undefined
   }
+  let message: MCPCallbackMessage
   try {
     // A blocked popup gets no closed-window detection: the user may open the URL by hand
-    await waitForMCPCallback(m => m.id === o.id, { popup: o.popup, signal: o.signal, origin })
+    message = await waitForMCPCallback(m => m.id === o.id && m.state === state, { popup: o.popup, signal: o.signal, origin })
   } catch (e) {
     // The callback page closes itself; when its message is lost the state is refetched all the same
     if (e instanceof MCPAuthError && e.code === 'popup_closed') return
     throw e
   }
+  if (o.signal.aborted) throw o.signal.reason
+  const text = (value: unknown) => (typeof value === 'string' && value ? value : undefined)
+  const code = text(message.code)
+  const error = text(message.error)
+  const errorDescription = text(message.errorDescription)
+  await api.complete(o.id, {
+    state,
+    ...(code ? { code } : {}),
+    ...(error ? { error } : {}),
+    ...(errorDescription ? { errorDescription } : {}),
+  })
 }
 
 export const toError = (e: unknown) => (e instanceof Error ? e : new Error(String(e)))

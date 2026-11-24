@@ -140,14 +140,14 @@ const STATE_TTL_SECONDS = 600
 const CONNECTION_TTL_MS = 60_000
 /**
  * A server that failed to connect (timeout, error, sign-in needed) is not retried by `toolsFor`
- * for 30 s, so consecutive chat requests don't each wait for it. `enable`, `authorize`, the
- * callback and `logout` clear it at once on this instance.
+ * for 30 s, so consecutive chat requests don't each wait for it. `enable`, `authorize`,
+ * `complete` and `logout` clear it at once on this instance.
  */
 const FAILURE_TTL_MS = 30_000
 const DEFAULT_TIMEOUT_MS = 10_000
 const CHANNEL = 'vue-llm:mcp'
 const MESSAGE_TYPE = 'vue-llm:mcp-callback'
-const ACTIONS = new Set(['enable', 'disable', 'authorize', 'logout'])
+const ACTIONS = new Set(['enable', 'disable', 'authorize', 'complete', 'logout'])
 /** Where the client registration per authorization server is stored, shared by all users */
 const SHARED_PREFIX = 'shared:'
 const NO_RESOLVER = 'createMCPConnector: allowCustom without allowHosts needs a DNS resolver (node:dns), which this runtime does not have. Set allowHosts'
@@ -662,7 +662,7 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
       const index: StateIndex = { userId, serverId: s.id, expiresAt: Date.now() + STATE_TTL_SECONDS * 1000 }
       await storage.set(stateKey(state), JSON.stringify(index), { ttl: STATE_TTL_SECONDS })
       await record(userId, s.id, { state: 'needs-auth' })
-      return json({ url })
+      return json({ url, state })
     } catch (error) {
       const f = failure(error)
       await record(userId, s.id, f)
@@ -695,50 +695,90 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
     return list(userId)
   }
 
-  /** The OAuth redirect target: finds the user through the single-use `state`, never through `user()` */
-  async function callback(url: URL): Promise<Response> {
-    const state = url.searchParams.get('state')
-    if (!state) return callbackPage(400, { ok: false, error: 'The sign-in response has no state' })
+  /**
+   * `POST /servers/:id/complete`: finishes a sign-in with the authorization response that the
+   * callback page relayed to the frontend. Only the user who started the flow (the `state`
+   * records them) can complete it, so a sign-in link handed to someone else can't attach their
+   * account to the sender's user. A refused request leaves the state for its owner.
+   */
+  async function complete(userId: string, id: string, request: Request): Promise<Response> {
+    const body = await readBody(request)
+    const text = (name: string) => (typeof body[name] === 'string' && body[name] ? body[name] as string : undefined)
+    const state = text('state')
+    if (!state) throw new HttpError(400, 'state is required')
     const key = stateKey(state)
     const index = parse<StateIndex>(await storage.get(key))
-    await storage.remove(key)
     if (!index || typeof index.userId !== 'string' || Date.now() >= index.expiresAt) {
-      return callbackPage(400, { ok: false, error: 'This sign-in link expired or was already used; try again' })
+      throw new HttpError(400, 'This sign-in expired or was already used; try again')
     }
-    const id = index.serverId
-    const s = resolveAll(await load(index.userId)).find(x => x.id === id)
-    if (!s) return callbackPage(400, { id, ok: false, error: `Unknown server "${id}"` })
+    if (index.userId !== userId || index.serverId !== id) {
+      throw new HttpError(403, 'This sign-in was started by another user or for another server')
+    }
+    await storage.remove(key)
+    const s = await find(userId, id)
     try {
       const deadline: Deadline = {}
-      const auth = authFor(index.userId, s, deadline)
+      const auth = authFor(userId, s, deadline)
       await withDeadline(s.url, deadline, () => auth.finishAuthorization({
         state,
-        code: url.searchParams.get('code') ?? undefined,
-        error: url.searchParams.get('error') ?? undefined,
-        errorDescription: url.searchParams.get('error_description') ?? undefined,
+        code: text('code'),
+        error: text('error'),
+        errorDescription: text('errorDescription'),
       }))
     } catch (error) {
-      const f = failure(error)
-      await record(index.userId, id, f)
-      return callbackPage(200, { id, ok: false, error: f.error })
+      await record(userId, id, failure(error))
+      return list(userId)
     }
-    invalidate(index.userId, id)
-    await record(index.userId, id, { state: 'connected' })
-    return callbackPage(200, { id, ok: true })
+    invalidate(userId, id)
+    await record(userId, id, { state: 'connected' })
+    return list(userId)
   }
 
-  async function callbackPage(status: number, result: { id?: string; ok: boolean; error?: string }): Promise<Response> {
+  /**
+   * The OAuth redirect target. It completes nothing: the page hands the authorization response
+   * to the window that opened it (on the frontend origin), whose app then calls `complete` with
+   * the user's own session. The state is only read here, to name the server, and stays unused.
+   */
+  async function callback(url: URL): Promise<Response> {
+    const state = url.searchParams.get('state')
+    if (!state) return callbackPage(400, { error: 'invalid_request', errorDescription: 'The sign-in response has no state' })
+    const index = parse<StateIndex>(await storage.get(stateKey(state)))
+    if (!index || typeof index.serverId !== 'string' || Date.now() >= index.expiresAt) {
+      return callbackPage(400, { error: 'invalid_state', errorDescription: 'This sign-in link expired or was already used; try again' })
+    }
+    const param = (name: string) => url.searchParams.get(name) ?? undefined
+    const error = param('error')
+    const errorDescription = param('error_description')
+    const code = param('code')
+    return callbackPage(200, {
+      id: index.serverId,
+      state,
+      ...(code !== undefined ? { code } : {}),
+      ...(error !== undefined ? { error } : {}),
+      ...(errorDescription !== undefined ? { errorDescription } : {}),
+    })
+  }
+
+  async function callbackPage(
+    status: number,
+    result: { id?: string; state?: string; code?: string; error?: string; errorDescription?: string },
+  ): Promise<Response> {
     const message = { type: MESSAGE_TYPE, ...result }
+    // The page is on the backend's origin: the channel reaches the frontend only when it shares it
+    const channel = publicOrigin === frontendOrigin
+      ? `\n  try { var channel = new BroadcastChannel(${scriptJSON(CHANNEL)}); channel.postMessage(message); channel.close() } catch (e) {}`
+      : ''
     const script = `(function () {
   var message = ${scriptJSON(message)};
-  try { if (window.opener) window.opener.postMessage(message, ${scriptJSON(frontendOrigin)}) } catch (e) {}
-  try { var channel = new BroadcastChannel(${scriptJSON(CHANNEL)}); channel.postMessage(message); channel.close() } catch (e) {}
+  try { if (window.opener) window.opener.postMessage(message, ${scriptJSON(frontendOrigin)}) } catch (e) {}${channel}
   window.close()
 })()`
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(script))
     let bin = ''
     for (const b of new Uint8Array(digest)) bin += String.fromCharCode(b)
-    const text = result.ok ? 'Connected. You can close this window.' : 'Sign-in did not complete. You can close this window.'
+    const text = status === 200 && !result.error
+      ? 'Finishing sign-in. You can close this window.'
+      : 'Sign-in did not complete. You can close this window.'
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Sign-in</title></head><body><p>${text}</p><script>${script}</script></body></html>`
     return new Response(html, {
       status,
@@ -827,6 +867,7 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
       return removeServer(userId, id)
     }
     if (method !== 'POST') throw new HttpError(405, 'Method not allowed')
+    if (verb === 'complete') return complete(userId, id, request)
     return action(userId, await find(userId, id), verb)
   }
 
