@@ -6,3 +6,7 @@ dist
 coverage
 docs/.vitepress/dist
 docs/.vitepress/cache
+
+# Рабочие заметки (спеки, планы, черновики постов) — только локально
+dev-notes/
+.superpowers/
