@@ -174,6 +174,33 @@ describe('useMCPServers', () => {
     expect(item(s, local).state).not.toBe('failed')
   })
 
+  it('add() of a URL already in the list returns the existing id', () => {
+    install()
+    const s = setup({ allowCustom: true })
+    const id = s.add({ url: 'https://mcp.example.com/mcp' })
+    expect(s.add({ url: 'https://MCP.example.com/mcp/' })).toBe(id)
+    expect(s.add({ url: 'https://mcp.example.com:443/mcp#x', name: 'Other' })).toBe(id)
+    expect(s.add({ url: A })).toBe('alpha')
+    expect(s.list.value.filter(i => i.custom)).toHaveLength(1)
+    expect(item(s, id).name).toBe('mcp.example.com')
+  })
+
+  it('add() limits custom servers: 20, url up to 2048 and name up to 100 characters', () => {
+    install()
+    const s = setup({ allowCustom: true })
+    const long = s.add({ url: `https://mcp.example.com/mcp?q=${'a'.repeat(2048)}` })
+    expect(item(s, long)).toMatchObject({ state: 'failed', enabled: false })
+    expect(item(s, long).error!.message).toMatch(/2048/)
+    const named = s.add({ url: 'https://mcp.example.com/mcp', name: 'n'.repeat(101) })
+    expect(item(s, named).state).toBe('failed')
+    expect(item(s, named).error!.message).toMatch(/100/)
+    for (let n = 0; n < 20; n++) s.add({ url: `https://mcp.example.com/mcp?n=${n}` })
+    const over = s.add({ url: 'https://mcp.example.com/mcp?n=20' })
+    expect(item(s, over).state).toBe('failed')
+    expect(item(s, over).error!.message).toMatch(/20/)
+    expect(s.list.value.filter(i => i.custom && i.state !== 'failed')).toHaveLength(20)
+  })
+
   it('allowCustom false makes add throw', () => {
     install()
     const s = setup()
@@ -494,6 +521,26 @@ describe('useMCPServers server mode', () => {
       'POST /servers',
       'DELETE /servers/example',
     ])
+  })
+
+  it('add() in server mode returns the id of a server with the same URL', async () => {
+    const { s, backend } = serverSetup()
+    await until(() => s.list.value.length === 4)
+    const posts = backend.world.requests.filter(r => r.method === 'POST').length
+    expect(s.add({ url: 'https://mcp.notion.com/mcp/' })).toBe('notion')
+    expect(backend.world.requests.filter(r => r.method === 'POST').length).toBe(posts)
+    expect(s.list.value).toHaveLength(4)
+  })
+
+  it('add() in server mode follows the backend when it already has the URL (409)', async () => {
+    const { s, backend } = serverSetup()
+    await until(() => s.list.value.length === 4)
+    backend.world.duplicateOf = 'gh'
+    const id = s.add({ url: 'https://elsewhere.example.com/mcp' })
+    expect(item(s, id).state).toBe('connecting')
+    await until(() => !s.list.value.some(i => i.id === id))
+    expect(s.list.value.map(i => i.id)).toEqual(['notion', 'gh', 'bad', 'bo'])
+    expect(item(s, 'gh')).toMatchObject({ state: 'ready', error: undefined })
   })
 
   it('shows a failed request on the entry', async () => {

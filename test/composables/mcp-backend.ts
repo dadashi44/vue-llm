@@ -34,6 +34,8 @@ export function fakeBackend(events: string[] = []) {
     servers,
     authorizeUrl: AUTH_URL as string | null,
     requests: [] as BackendRequest[],
+    /** POST /servers answers 409 with this id, as the connector does for a URL it already has */
+    duplicateOf: undefined as string | undefined,
     /** Bodies of POST /servers/:id/complete */
     completes: [] as { id: string; body: Record<string, unknown> }[],
   }
@@ -49,6 +51,7 @@ export function fakeBackend(events: string[] = []) {
     events.push(`${method} ${path}`)
     if (path === '/servers' && method === 'GET') return json({ servers })
     if (path === '/servers' && method === 'POST') {
+      if (world.duplicateOf) return json({ error: 'This server is already in the list', id: world.duplicateOf, servers }, 409)
       const data = JSON.parse(body!) as { url: string; name?: string }
       const id = new URL(data.url).hostname.split('.')[1]
       servers.push({ id, name: data.name ?? new URL(data.url).host, url: data.url, custom: true, enabled: true, state: 'needs-auth' })

@@ -241,7 +241,7 @@ Render the list however you like:
 | `enable(id)` | Turns a server on and connects with stored credentials. Never opens a popup: if sign-in is needed, the state becomes `needs-auth`. |
 | `authorize(id)` | Opens the sign-in popup (and turns the server on). Call it from a click: browsers block popups opened later. |
 | `disable(id)` | Turns a server off and keeps the sign-in. |
-| `add({ url, name? })` | Adds a server by URL (needs `allowCustom`) and returns its id, made from the host (`mcp.example.com` → `example`). `https://` only, `http://localhost` for development. An invalid URL doesn't throw: the entry shows `failed` with the reason. |
+| `add({ url, name? })` | Adds a server by URL (needs `allowCustom`) and returns its id, made from the host (`mcp.example.com` → `example`). `https://` only, `http://localhost` for development. An invalid URL doesn't throw: the entry shows `failed` with the reason. A URL that is already in the list returns that server's id instead of adding it twice. Up to 20 added servers, URLs up to 2048 characters and names up to 100. |
 | `remove(id)` | Forgets a server the user added, with its tokens. Catalog servers can only be turned off. |
 | `refresh()` | Reconnects every enabled server. |
 
@@ -387,7 +387,7 @@ You don't write a callback page in server mode: the connector serves it at `${pu
 | `user` | Required. Returns the signed-in user's id for a request, or `null` (the routes then answer 401) |
 | `store` | Where tokens, registrations and each user's list live: any `get`/`set`/`remove`, sync or async. Nitro's `useStorage()` and unstorage fit as is. |
 | `secret` | Encrypts every stored value (AES-GCM). Required when `NODE_ENV` is `production`; in development, without it, values are stored in plain text and a warning is logged. |
-| `allowCustom` | Lets users add servers by URL. Default `false`. See [Security notes](#security-notes). |
+| `allowCustom` | Lets users add servers by URL. Default `false`. Up to 20 per user, URLs up to 2048 characters and names up to 100 (400 otherwise); a URL already in the user's list gets 409 with that server's `id`. See [Security notes](#security-notes). |
 | `allowHosts` | Host patterns (`example.com`, `*.example.com`) allowed for user-added servers and their sign-in |
 | `timeout` | Deadline for connecting to one server, in ms. Default `10000`; a slower server is skipped and shown as an error. |
 | `clientName` | Shown on the provider's consent screen. Default: the host of `publicUrl` |

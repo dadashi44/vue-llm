@@ -28,6 +28,7 @@ export interface MCPBackendEntry {
 
 export interface MCPBackendAPI {
   list(): Promise<MCPBackendEntry[]>
+  /** Adds a server; when the backend already has its URL, resolves with that server's id */
   add(body: { url: string; name?: string }): Promise<{ id: string; servers: MCPBackendEntry[] }>
   remove(id: string): Promise<MCPBackendEntry[]>
   action(id: string, verb: 'enable' | 'disable' | 'logout'): Promise<MCPBackendEntry[]>
@@ -48,7 +49,7 @@ export function createMCPBackend(o: MCPServerModeOptions): MCPBackendAPI {
   const base = o.server.replace(/\/+$/, '')
   const path = (id: string) => `/servers/${encodeURIComponent(id)}`
 
-  async function request(method: string, route: string, body?: unknown): Promise<unknown> {
+  async function request(method: string, route: string, body?: unknown, accept: number[] = []): Promise<unknown> {
     const fetchFn = o.fetch ?? globalThis.fetch
     const response = await fetchFn(`${base}${route}`, {
       method,
@@ -62,7 +63,7 @@ export function createMCPBackend(o: MCPServerModeOptions): MCPBackendAPI {
     } catch {
       data = undefined
     }
-    if (!response.ok) {
+    if (!response.ok && !accept.includes(response.status)) {
       const message = (data as { error?: unknown } | undefined)?.error
       throw new Error(typeof message === 'string' && message ? message : `MCP backend: HTTP ${response.status}`)
     }
@@ -72,7 +73,8 @@ export function createMCPBackend(o: MCPServerModeOptions): MCPBackendAPI {
   return {
     list: async () => servers(await request('GET', '/servers')),
     async add(body) {
-      const data = await request('POST', '/servers', body)
+      // 409: the backend already has this URL and answers with that server's id and the list
+      const data = await request('POST', '/servers', body, [409])
       return { id: String((data as { id?: unknown }).id), servers: servers(data) }
     },
     remove: async id => servers(await request('DELETE', path(id))),

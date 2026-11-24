@@ -20,3 +20,31 @@ export function idFromHost(url: URL): string {
   if (stripped.includes('.')) host = stripped
   return host.split('.')[0].replace(/[^a-z0-9-]/g, '') || 'server'
 }
+
+/** Limits on servers added by users, the same in the browser and on the backend */
+export const MAX_CUSTOM_SERVERS = 20
+export const MAX_URL_LENGTH = 2048
+export const MAX_NAME_LENGTH = 100
+
+/** `checkUrl` plus the length limits of a server added by the user */
+export function checkCustom(input: string, name: string | undefined): URL | Error {
+  if (input.length > MAX_URL_LENGTH) return new Error(`The URL is longer than ${MAX_URL_LENGTH} characters`)
+  if (name !== undefined && name.length > MAX_NAME_LENGTH) return new Error(`The name is longer than ${MAX_NAME_LENGTH} characters`)
+  return checkUrl(input)
+}
+
+/** Compares server URLs: case of the host, default port, fragment and trailing slashes don't count */
+export function sameServerUrl(a: string | URL, b: string | URL): boolean {
+  const key = (value: string | URL) => {
+    try {
+      const url = new URL(String(value))
+      url.hash = ''
+      url.pathname = url.pathname.replace(/\/+$/, '')
+      return url.href
+    } catch {
+      return undefined
+    }
+  }
+  const ka = key(a)
+  return ka !== undefined && ka === key(b)
+}

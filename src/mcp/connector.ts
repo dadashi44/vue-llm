@@ -6,7 +6,7 @@ import type { MCPServerPreset, MCPToolFilter } from './servers.js'
 import { assertPublicHost, guardedFetch, loadNodeResolver, type MCPHostResolver } from './ssrf.js'
 import type { MCPAuthStorage } from './storage.js'
 import { mcpTools, type MCPTool } from './tools.js'
-import { checkUrl, idFromHost } from './url.js'
+import { checkCustom, idFromHost, MAX_CUSTOM_SERVERS, sameServerUrl } from './url.js'
 
 /** A server in `createMCPConnector({ servers })` that isn't a preset */
 export interface MCPConnectorServer extends MCPToolFilter {
@@ -521,7 +521,9 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
     const prev = await previous?.catch(() => undefined)
     if (prev) {
       try {
-        const tools = await withDeadline(s.url, prev.deadline, signal => mcpTools(prev.client, { prefix: s.id, include: s.include, exclude: s.exclude, signal }))
+        // Its own deadline: the connection's is read by every request on it, so setting that one
+        // would abort the tool calls a chat runs meanwhile. The listing follows `signal` alone
+        const tools = await withDeadline(s.url, {}, signal => mcpTools(prev.client, { prefix: s.id, include: s.include, exclude: s.exclude, signal }))
         await record(userId, s.id, { state: 'connected' })
         return { ...prev, tools }
       } catch {
@@ -601,8 +603,14 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
     const body = await readBody(request)
     if (typeof body.url !== 'string') throw new HttpError(400, 'url is required')
     const input = body.url.trim()
-    const url = checkUrl(input)
+    const given = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : undefined
+    const url = checkCustom(input, given)
     if (url instanceof Error) throw new HttpError(400, url.message)
+    const known = (d: UserData) => resolveAll(d).find(s => sameServerUrl(s.url, url))
+    const current = await load(userId)
+    const existing = known(current)
+    if (existing) return duplicate(userId, existing.id)
+    if (current.custom.length >= MAX_CUSTOM_SERVERS) throw new HttpError(400, `At most ${MAX_CUSTOM_SERVERS} servers can be added`)
     await assertCustomAllowed()
     if (!isTrusted(url)) {
       try {
@@ -612,8 +620,14 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
         throw error
       }
     }
-    const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : url.host
+    const name = given ?? url.host
+    let found: string | undefined
+    let full = false
     const id = await update(userId, (d) => {
+      // Checked again under the lock: a concurrent add may have taken the URL or the last slot
+      found = known(d)?.id
+      full = d.custom.length >= MAX_CUSTOM_SERVERS
+      if (found || full) return false
       const taken = (x: string) => resolveAll(d).some(s => s.id === x)
       const base = idFromHost(url)
       let next = base
@@ -622,9 +636,16 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
       d.enabled.push(next)
       delete d.states[next]
       return next
-    }) as string
+    })
+    if (found) return duplicate(userId, found)
+    if (full || id === false) throw new HttpError(400, `At most ${MAX_CUSTOM_SERVERS} servers can be added`)
     await connectServer(userId, { id, name, url: input, custom: true }, true)
     return json({ id, servers: entries(await load(userId)) }, 201)
+  }
+
+  /** A server with this URL is already in the user's list: a second entry would share its tokens */
+  async function duplicate(userId: string, id: string): Promise<Response> {
+    return json({ error: `This server is already in the list as "${id}"`, id, servers: entries(await load(userId)) }, 409)
   }
 
   async function removeServer(userId: string, id: string): Promise<Response> {

@@ -17,6 +17,7 @@ import type { MCPServerPreset } from '../../src/mcp/servers.js'
  * - mcp.test, mcp2.test  MCP servers protected by auth.test
  * - gh.test       MCP server protected by ghauth.test
  * - open.test     MCP server without auth
+ * - slow.test     MCP server without auth that also has a `sleep` tool
  * - down.test     unreachable (fetch throws TypeError)
  */
 
@@ -37,7 +38,10 @@ const world = {
   issued: [] as string[],
   hangRequests: 0,
   hanging: [] as ServerResponse[],
+  /** MCP servers stop answering tools/list (the request hangs) */
+  hangList: false,
   reset() {
+    this.hangList = false
     this.hangRequests = 0
     for (const res of this.hanging.splice(0)) res.end()
     this.expiresIn = 3600
@@ -73,6 +77,13 @@ function makeMcpServer(host: string): McpServer {
     description: 'Adds two numbers',
     inputSchema: { a: z.number(), b: z.number() },
   }, async ({ a, b }) => ({ content: [{ type: 'text', text: String(a + b) }] }))
+  if (host === 'slow.test') server.registerTool('sleep', {
+    description: 'Answers after ms milliseconds',
+    inputSchema: { ms: z.number() },
+  }, async ({ ms }) => {
+    await new Promise(resolve => setTimeout(resolve, ms))
+    return { content: [{ type: 'text', text: 'awake' }] }
+  })
   return server
 }
 
@@ -166,7 +177,7 @@ async function mcpServer(host: string, path: string, req: IncomingMessage, res: 
     world.hanging.push(res)
     return
   }
-  const protectedBy = host === 'open.test' ? undefined : host === 'gh.test' ? 'https://ghauth.test' : 'https://auth.test'
+  const protectedBy = host === 'open.test' || host === 'slow.test' ? undefined : host === 'gh.test' ? 'https://ghauth.test' : 'https://auth.test'
   if (path === '/.well-known/oauth-protected-resource/mcp' && protectedBy) {
     return json(res, 200, { resource: `https://${host}/mcp`, authorization_servers: [protectedBy] })
   }
@@ -180,6 +191,10 @@ async function mcpServer(host: string, path: string, req: IncomingMessage, res: 
     return
   }
   const text = req.method === 'POST' ? await readText(req) : ''
+  if (world.hangList && text.includes('"tools/list"')) {
+    world.hanging.push(res)
+    return
+  }
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
   const server = makeMcpServer(host)
   res.on('close', () => {
@@ -653,14 +668,40 @@ describe('createMCPConnector', () => {
     expect((await t.toolsFor()).map(tool => tool.name)).toContain('mcp2_echo')
     expect(t.data.has('u:alice:tokens:https://mcp2.test/mcp')).toBe(true)
 
-    const second = await t.call('POST', '/servers', { body: { url: 'https://mcp2.test/mcp' } })
-    expect((await second.json()).id).toBe('mcp2-2')
+    // The same URL again: no second entry sharing (and on removal, signing out) the first one's tokens
+    for (const url of ['https://mcp2.test/mcp', 'https://MCP2.test/mcp/', 'https://mcp2.test:443/mcp#x']) {
+      const second = await t.call('POST', '/servers', { body: { url } })
+      expect(second.status, url).toBe(409)
+      expect(await second.json()).toMatchObject({ id: 'mcp2', error: expect.any(String), servers: expect.any(Array) })
+    }
+    const catalogUrl = await t.call('POST', '/servers', { body: { url: 'https://mcp.test/mcp' } })
+    expect(catalogUrl.status).toBe(409)
+    expect((await catalogUrl.json()).id).toBe('demo')
+    expect((await t.list()).filter(s => s.custom)).toHaveLength(1)
 
     const removed = await t.call('DELETE', '/servers/mcp2')
     expect(removed.status).toBe(200)
     expect(await t.entry('mcp2')).toBeUndefined()
     expect(t.data.has('u:alice:tokens:https://mcp2.test/mcp')).toBe(false)
     expect((await t.toolsFor()).map(tool => tool.name)).not.toContain('mcp2_echo')
+  })
+
+  it('limits custom servers: 20 per user, url up to 2048 and name up to 100 characters', async () => {
+    const t = setup()
+    const long = await t.call('POST', '/servers', { body: { url: `https://open.test/mcp?q=${'a'.repeat(2048)}` } })
+    expect(long.status).toBe(400)
+    const named = await t.call('POST', '/servers', { body: { url: 'https://open.test/mcp?n=0', name: 'n'.repeat(101) } })
+    expect(named.status).toBe(400)
+    expect((await t.call('POST', '/servers', { body: { url: 'https://open.test/mcp?n=0', name: 'n'.repeat(100) } })).status).toBe(201)
+    for (let n = 1; n < 20; n++) {
+      expect((await t.call('POST', '/servers', { body: { url: `https://open.test/mcp?n=${n}` } })).status).toBe(201)
+    }
+    const over = await t.call('POST', '/servers', { body: { url: 'https://open.test/mcp?n=20' } })
+    expect(over.status).toBe(400)
+    expect((await over.json()).error).toMatch(/20/)
+    expect((await t.list()).filter(s => s.custom)).toHaveLength(20)
+    // Per user
+    expect((await t.call('POST', '/servers', { body: { url: 'https://open.test/mcp?n=20' }, user: 'bob' })).status).toBe(201)
   })
 
   it('refuses custom servers without allowCustom and outside allowHosts', async () => {
@@ -722,6 +763,26 @@ describe('createMCPConnector', () => {
     const p = setup({ servers: [{ ...demo, include: ['add'] }] })
     await p.signIn('demo')
     expect((await p.toolsFor()).map(tool => tool.name)).toEqual(['demo_add'])
+  })
+
+  it('a re-list that times out does not abort tool calls running on the same connection', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const t = setup({ servers: [{ id: 'slow', url: 'https://slow.test/mcp' }], timeout: 300 })
+      await t.call('POST', '/servers/slow/enable')
+      const sleep = (await t.toolsFor()).find(tool => tool.name === 'slow_sleep')!
+      // The cached connection expires: the next toolsFor lists the tools again on it
+      vi.setSystemTime(Date.now() + 61_000)
+      world.hangList = true
+      const listing = t.toolsFor()
+      await vi.waitFor(() => expect(world.hanging.length).toBe(1), { interval: 5 })
+      // A chat runs a tool while the re-list waits
+      const running = sleep.execute({ ms: 500 }, ctx)
+      await listing
+      await expect(running).resolves.toBe('awake')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('reuses connections for a short time', async () => {

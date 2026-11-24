@@ -2,7 +2,7 @@ import { computed, effectScope, getCurrentScope, markRaw, onScopeDispose, ref, s
 import { MCPUnsupportedServerError } from '../mcp/errors.js'
 import type { MCPServerPreset, MCPToolFilter } from '../mcp/servers.js'
 import { resolveMCPStorage, type MCPStorageOption } from '../mcp/storage.js'
-import { checkUrl, idFromHost } from '../mcp/url.js'
+import { checkCustom, checkUrl, idFromHost, MAX_CUSTOM_SERVERS, sameServerUrl } from '../mcp/url.js'
 import type { MCPTool } from '../mcp/tools.js'
 import { openAuthPopup } from '../mcp/callback.js'
 import { MCPAuthError } from '../mcp/errors.js'
@@ -345,10 +345,15 @@ export function useMCPServers(o: UseMCPServersOptions = {}): UseMCPServersReturn
     if (!o.allowCustom) throw new Error('useMCPServers: adding servers needs allowCustom: true')
     const input = server.url.trim()
     const name = server.name?.trim()
-    const url = checkUrl(input)
+    const checked = checkCustom(input, name)
+    // A second entry for the same server would share its tokens: removing one would sign out the other
+    const existing = checked instanceof Error ? undefined : entries.value.find(e => !e.failure && sameServerUrl(e.url, checked))
+    if (existing) return existing.id
+    const full = entries.value.filter(e => e.custom && !e.failure).length >= MAX_CUSTOM_SERVERS
+    const url = !(checked instanceof Error) && full ? new Error(`At most ${MAX_CUSTOM_SERVERS} servers can be added`) : checked
     if (url instanceof Error) {
       const id = uniqueId('custom')
-      entries.value = [...entries.value, makeEntry({ id, name: name || input || id, url: input, custom: true, failure: url })]
+      entries.value = [...entries.value, makeEntry({ id, name: (name || input || id).slice(0, 100), url: input, custom: true, failure: url })]
       return id
     }
     const id = uniqueId(idFromHost(url))
@@ -589,10 +594,13 @@ function useServerMCPServers(o: UseMCPServersOptions & MCPServerModeOptions): Us
   function add(server: { url: string; name?: string }): string {
     const input = server.url.trim()
     const name = server.name?.trim()
-    const url = checkUrl(input)
+    const url = checkCustom(input, name)
+    // The backend answers 409 for a URL it already has; the list we know already tells
+    const existing = url instanceof Error ? undefined : list.value.find(i => i.state !== 'failed' && sameServerUrl(i.url, url))
+    if (existing) return existing.id
     if (url instanceof Error) {
       const id = uniqueId('custom')
-      local.value = [...local.value, { id, name: name || input || id, url: input, failure: url }]
+      local.value = [...local.value, { id, name: (name || input || id).slice(0, 100), url: input, failure: url }]
       return id
     }
     const id = uniqueId(idFromHost(url))
