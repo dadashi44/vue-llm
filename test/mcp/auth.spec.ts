@@ -357,6 +357,51 @@ describe('createMCPAuth', () => {
     expect(stored.refresh_token).toBe('rt')
   })
 
+  it('a concurrent refresh by another instance on the same storage keeps the winner\'s rotated tokens', async () => {
+    // Rotating refresh tokens: each one works once. The loser's request is answered after the
+    // winner stored its tokens, as when another tab or server instance refreshed first
+    let issued = 0
+    const valid = new Set<string>()
+    const tokenRoute = async (init?: RequestInit) => {
+      const f = form(init)
+      if (f.get('grant_type') === 'refresh_token') {
+        if (!valid.delete(f.get('refresh_token')!)) {
+          await new Promise(resolve => setTimeout(resolve, 20))
+          return json({ error: 'invalid_grant' }, 400)
+        }
+      }
+      issued++
+      valid.add(`rt${issued}`)
+      return json({ access_token: `at${issued}`, token_type: 'Bearer', refresh_token: `rt${issued}`, expires_in: 3600 })
+    }
+    const storage = resolveMCPStorage('memory')
+    const mk = () => createMCPAuth({
+      serverUrl: SERVER,
+      storage,
+      keyPrefix: 'p:',
+      clientName: 'App',
+      redirectUri: 'https://app.test/mcp/callback',
+      fetch: router(tokenRoutes({ [`${ISSUER}/token`]: tokenRoute })).fetch,
+    })
+    const a = mk()
+    const b = mk()
+    const { state } = await a.startAuthorization()
+    await a.finishAuthorization({ state, code: 'c' })
+    vi.setSystemTime(Date.now() + 3600_000 - 30_000)
+
+    const tokens = await Promise.all([a.accessToken(), b.accessToken()])
+    expect(tokens).toEqual(['at2', 'at2'])
+    const stored = JSON.parse((await storage.get(`p:tokens:${SERVER}`))!)
+    expect(stored).toMatchObject({ access_token: 'at2', refresh_token: 'rt2' })
+    expect(valid.has('rt2')).toBe(true)
+
+    // Another instance whose refresh failed while the stored token is unchanged still signs out
+    valid.clear()
+    vi.setSystemTime(Date.now() + 3600_000)
+    expect(await b.accessToken()).toBeUndefined()
+    expect(await storage.get(`p:tokens:${SERVER}`)).toBeNull()
+  })
+
   it('onUnauthorized returns needs-auth when refresh fails with invalid_grant', async () => {
     const ctx = await signedIn((init) =>
       form(init).get('grant_type') === 'refresh_token'

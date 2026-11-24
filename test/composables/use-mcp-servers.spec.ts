@@ -188,6 +188,65 @@ describe('useMCPServers', () => {
     await until(() => item(restored, 'beta').state === 'ready' && item(restored, 'example').state === 'ready')
   })
 
+  it('keeps saved custom servers it does not load (allowCustom off) when it saves', () => {
+    install()
+    const saved = {
+      enabled: ['alpha', 'mine'],
+      custom: [{ id: 'mine', url: 'https://mcp.mine.dev/mcp', name: 'Mine' }],
+    }
+    localStorage.setItem(`${KEY}servers`, JSON.stringify(saved))
+    const s = setup()
+    expect(s.list.value.map(i => i.id)).toEqual(['alpha', 'beta'])
+    s.enable('beta')
+    expect(persisted()).toEqual({ enabled: ['alpha', 'beta', 'mine'], custom: saved.custom })
+    void s.disable('alpha')
+    expect(persisted()).toEqual({ enabled: ['beta', 'mine'], custom: saved.custom })
+
+    // The saved server is still there for an instance that allows custom servers
+    const full = setup({ allowCustom: true })
+    expect(full.list.value.map(i => [i.id, i.enabled])).toEqual([['alpha', false], ['beta', true], ['mine', true]])
+  })
+
+  it('two instances on the same storage keep each other\'s servers', () => {
+    install()
+    const a = effectScope()
+    const b = effectScope()
+    try {
+      const withCustom = a.run(() => useMCPServers({ catalog: CATALOG, allowCustom: true }))!
+      const plain = b.run(() => useMCPServers({ catalog: CATALOG }))!
+      const id = withCustom.add({ url: 'https://mcp.example.com/mcp' })
+      plain.enable('beta')
+      expect(persisted()).toEqual({
+        enabled: ['beta', id],
+        custom: [{ id, url: 'https://mcp.example.com/mcp', name: 'mcp.example.com' }],
+      })
+      void withCustom.remove(id)
+      plain.enable('alpha')
+      expect(persisted()).toEqual({ enabled: ['alpha', 'beta'], custom: [] })
+    } finally {
+      a.stop()
+      b.stop()
+    }
+  })
+
+  it('a saved custom server renamed because the catalog took its id keeps its enabled state', () => {
+    install()
+    localStorage.setItem(`${KEY}servers`, JSON.stringify({
+      enabled: ['gamma'],
+      custom: [{ id: 'gamma', url: 'https://mcp.gamma.dev/mcp', name: 'Mine' }],
+    }))
+    const s = setup({ allowCustom: true, catalog: [...CATALOG, { id: 'gamma', url: 'https://catalog.gamma.dev/mcp' }] })
+    const custom = s.list.value.find(i => i.custom)!
+    expect(custom.id).not.toBe('gamma')
+    expect(custom).toMatchObject({ name: 'Mine', enabled: true })
+    expect(item(s, 'gamma').enabled).toBe(false)
+    s.enable('alpha')
+    expect(persisted()).toEqual({
+      enabled: ['alpha', custom.id],
+      custom: [{ id: custom.id, url: 'https://mcp.gamma.dev/mcp', name: 'Mine' }],
+    })
+  })
+
   it('ignores corrupt persisted state', () => {
     install()
     localStorage.setItem(`${KEY}servers`, '{not json')

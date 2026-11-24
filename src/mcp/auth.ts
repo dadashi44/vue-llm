@@ -137,7 +137,11 @@ export function createMCPAuth(o: CreateMCPAuthOptions): MCPAuth {
         return next
       } catch (e) {
         if (e instanceof MCPAuthError && (e.code === 'invalid_grant' || e.code === 'invalid_client')) {
-          await o.storage.remove(tokensKey)
+          // With rotating refresh tokens, another instance, tab or server may have refreshed
+          // first and stored a new pair: use it instead of signing out
+          const stored = await loadTokens()
+          if (stored && stored.refresh_token !== tokens.refresh_token) return stored
+          if (stored) await o.storage.remove(tokensKey)
           return undefined
         }
         throw e

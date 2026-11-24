@@ -138,6 +138,12 @@ export function useMCPServers(o: UseMCPServersOptions = {}): UseMCPServersReturn
   /** Writes wait until the saved list was read, so an async storage isn't overwritten */
   let restored = false
   let dirty = false
+  /**
+   * Saved custom ids this instance answers for: restored (under their saved id, even when
+   * renamed), added or removed here. Other saved custom servers (another instance's, or kept
+   * while `allowCustom` is off) and enabled ids it has no entry for are written back untouched.
+   */
+  const claimed = new Set<string>()
 
   function makeEntry(init: { id: string; name: string; url: string; custom: boolean; failure?: Error }): Entry {
     const entry: Entry = {
@@ -225,29 +231,57 @@ export function useMCPServers(o: UseMCPServersOptions = {}): UseMCPServersReturn
       dirty = true
       return
     }
-    const data: Persisted = {
-      enabled: entries.value.filter(e => e.enabled.value).map(e => e.id),
-      custom: entries.value.filter(e => e.custom && !e.failure).map(e => ({ id: e.id, url: e.url, name: e.name })),
+    // Read-modify-write: what this instance doesn't own is kept as saved
+    const write = (raw: string | null | undefined) => {
+      if (disposed) return
+      const saved = parsePersisted(raw)
+      const own = new Set([...entries.value.map(e => e.id), ...claimed])
+      const data: Persisted = {
+        enabled: [
+          ...entries.value.filter(e => e.enabled.value).map(e => e.id),
+          ...(saved?.enabled ?? []).filter(id => !own.has(id)),
+        ],
+        custom: [
+          ...entries.value.filter(e => e.custom && !e.failure).map(e => ({ id: e.id, url: e.url, name: e.name })),
+          ...(saved?.custom ?? []).filter(c => !claimed.has(c.id) && !entries.value.some(e => e.custom && e.id === c.id)),
+        ],
+      }
+      try {
+        void Promise.resolve(storage.set(STORAGE_KEY, JSON.stringify(data))).catch(() => {})
+      } catch {
+        // storage unavailable: the list lives for this page only
+      }
     }
+    let raw: ReturnType<typeof storage.get> | undefined
     try {
-      void Promise.resolve(storage.set(STORAGE_KEY, JSON.stringify(data))).catch(() => {})
+      raw = storage.get(STORAGE_KEY)
     } catch {
-      // storage unavailable: the list lives for this page only
+      raw = undefined
+    }
+    if (raw && typeof (raw as Promise<unknown>).then === 'function') {
+      ;(raw as Promise<string | null | undefined>).then(write, () => write(undefined))
+    } else {
+      write(raw as string | null | undefined)
     }
   }
 
   function restore(raw: string | null | undefined) {
     if (disposed) return
     const saved = parsePersisted(raw)
+    /** Saved custom id → the id it got here (another one when the catalog took it) */
+    const renamed = new Map<string, string>()
     if (saved && o.allowCustom) {
       for (const c of saved.custom) {
         const url = checkUrl(c.url)
         if (url instanceof Error) continue
         const id = /^[a-z0-9-]+$/.test(c.id) && !find(c.id) ? c.id : uniqueId(idFromHost(url))
+        claimed.add(c.id)
+        if (id !== c.id) renamed.set(c.id, id)
         entries.value = [...entries.value, makeEntry({ id, name: c.name, url: c.url, custom: true })]
       }
     }
-    for (const id of saved?.enabled ?? []) {
+    for (const savedId of saved?.enabled ?? []) {
+      const id = renamed.get(savedId) ?? savedId
       const entry = find(id)
       if (!entry || entry.enabled.value) continue
       entry.enabled.value = true
@@ -311,6 +345,7 @@ export function useMCPServers(o: UseMCPServersOptions = {}): UseMCPServersReturn
       return id
     }
     const id = uniqueId(idFromHost(url))
+    claimed.add(id)
     const entry = makeEntry({ id, name: name || url.host, url: input, custom: true })
     entries.value = [...entries.value, entry]
     entry.enabled.value = true
