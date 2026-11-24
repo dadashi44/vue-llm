@@ -1,4 +1,4 @@
-import { MCPAuthError, MCPHTTPError, MCPUnsupportedServerError } from './errors.js'
+import { MCPAuthError, MCPUnsupportedServerError } from './errors.js'
 import {
   buildAuthorizationUrl,
   discoverAuth,
@@ -47,6 +47,11 @@ interface Discovery {
 interface Pending {
   verifier: string
   expiresAt: number
+  serverUrl: string
+  redirectUri: string
+  resource: string
+  client: OAuthClient
+  metadata: AuthServerMetadata
 }
 
 const PENDING_TTL_SECONDS = 600
@@ -124,7 +129,7 @@ export function createMCPAuth(o: CreateMCPAuthOptions): MCPAuth {
         await o.storage.set(tokensKey, JSON.stringify(next))
         return next
       } catch (e) {
-        if (e instanceof MCPAuthError || e instanceof MCPHTTPError) {
+        if (e instanceof MCPAuthError && (e.code === 'invalid_grant' || e.code === 'invalid_client')) {
           await o.storage.remove(tokensKey)
           return undefined
         }
@@ -180,6 +185,11 @@ export function createMCPAuth(o: CreateMCPAuthOptions): MCPAuth {
       const pending: Pending = {
         verifier: pkce.verifier,
         expiresAt: Date.now() + PENDING_TTL_SECONDS * 1000,
+        serverUrl: o.serverUrl,
+        redirectUri: o.redirectUri,
+        resource: d.resource,
+        client,
+        metadata: d.metadata,
       }
       await pendingStorage.set(pendingKey(state), JSON.stringify(pending), {
         ttl: PENDING_TTL_SECONDS,
@@ -199,22 +209,19 @@ export function createMCPAuth(o: CreateMCPAuthOptions): MCPAuth {
       const key = pendingKey(p.state)
       const pending = parse<Pending>(await pendingStorage.get(key))
       await pendingStorage.remove(key)
-      if (!pending || Date.now() >= pending.expiresAt) {
+      if (!pending || pending.serverUrl !== o.serverUrl || Date.now() >= pending.expiresAt) {
         throw new MCPAuthError('invalid_state', 'Unknown or expired authorization state')
       }
       if (p.error) throw new MCPAuthError(p.error, p.errorDescription)
       if (!p.code) throw new MCPAuthError('invalid_request', 'Authorization response has no code')
-      const d = await ensureDiscovery()
-      const client = await loadClient(d)
-      if (!client) throw new MCPAuthError('invalid_client', 'No client registration found')
       const tokens = await exchangeCode(
-        d.metadata,
+        pending.metadata,
         {
-          client,
+          client: pending.client,
           code: p.code,
           verifier: pending.verifier,
-          redirectUri: o.redirectUri,
-          resource: d.resource,
+          redirectUri: pending.redirectUri,
+          resource: pending.resource,
         },
         fetchFn,
       )

@@ -45,6 +45,30 @@ export function parseWWWAuthenticate(header: string | null): MCPAuthChallenge {
   return out
 }
 
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]'])
+
+/** https, or http only for loopback hosts */
+function isSafeUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  try {
+    const u = new URL(value)
+    return u.protocol === 'https:' || (u.protocol === 'http:' && LOOPBACK.has(u.hostname))
+  } catch {
+    return false
+  }
+}
+
+function sameResource(a: string, b: string): boolean {
+  try {
+    const ua = new URL(a)
+    const ub = new URL(b)
+    const path = (u: URL) => u.pathname.replace(/\/+$/, '')
+    return ua.origin === ub.origin && path(ua) === path(ub) && ua.search === ub.search
+  } catch {
+    return false
+  }
+}
+
 async function getJSON(url: string, fetchFn: typeof fetch): Promise<Record<string, any> | undefined> {
   try {
     const res = await fetchFn(url, { headers: { Accept: 'application/json' } })
@@ -65,7 +89,7 @@ export async function discoverAuth(
   const path = server.pathname === '/' ? '' : server.pathname.replace(/\/$/, '')
 
   const prmUrls: string[] = []
-  if (challenge.resourceMetadata) prmUrls.push(challenge.resourceMetadata)
+  if (isSafeUrl(challenge.resourceMetadata)) prmUrls.push(challenge.resourceMetadata)
   prmUrls.push(`${server.origin}/.well-known/oauth-protected-resource${path}`)
   if (path) prmUrls.push(`${server.origin}/.well-known/oauth-protected-resource`)
 
@@ -75,7 +99,7 @@ export async function discoverAuth(
     if (prm) break
   }
   const issuerUrl: unknown = prm?.authorization_servers?.[0]
-  if (!prm || typeof issuerUrl !== 'string') {
+  if (!prm || !isSafeUrl(issuerUrl)) {
     throw new MCPUnsupportedServerError(
       'no-auth-metadata',
       `No OAuth protected-resource metadata found for ${serverUrl}`,
@@ -94,10 +118,11 @@ export async function discoverAuth(
   let metadata: AuthServerMetadata | undefined
   for (const url of [...new Set(asUrls)]) {
     const found = await getJSON(url, fetchFn)
-    if (found?.authorization_endpoint && found.token_endpoint) {
-      metadata = { issuer: issuerUrl, ...found } as AuthServerMetadata
-      break
-    }
+    if (!found || !isSafeUrl(found.authorization_endpoint) || !isSafeUrl(found.token_endpoint)) continue
+    if (found.issuer !== undefined && found.issuer !== issuerUrl) continue
+    if (found.registration_endpoint !== undefined && !isSafeUrl(found.registration_endpoint)) continue
+    metadata = { ...found, issuer: issuerUrl } as AuthServerMetadata
+    break
   }
   if (!metadata) {
     throw new MCPUnsupportedServerError(
@@ -116,6 +141,12 @@ export async function discoverAuth(
   const scope =
     challenge.scope ||
     (Array.isArray(scopes) && scopes.length ? scopes.join(' ') : undefined)
+  if (prm.resource !== undefined && !(typeof prm.resource === 'string' && sameResource(prm.resource, serverUrl))) {
+    throw new MCPUnsupportedServerError(
+      'no-auth-metadata',
+      `Protected-resource metadata is for ${String(prm.resource)}, not ${serverUrl}`,
+    )
+  }
   const resource = typeof prm.resource === 'string' && prm.resource ? prm.resource : serverUrl
   return { resource, ...(scope ? { scope } : {}), metadata }
 }

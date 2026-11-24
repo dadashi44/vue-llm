@@ -109,11 +109,66 @@ describe('discoverAuth', () => {
   it('resource: metadata resource, else the server URL', async () => {
     const routes = {
       ...baseRoutes(),
-      'https://mcp.example.com/.well-known/oauth-protected-resource/mcp': { ...PRM, resource: 'https://r.test/x' },
+      'https://mcp.example.com/.well-known/oauth-protected-resource/mcp': { ...PRM, resource: `${SERVER}/` },
     }
-    expect((await discoverAuth(SERVER, {}, router(routes).fetch)).resource).toBe('https://r.test/x')
+    expect((await discoverAuth(SERVER, {}, router(routes).fetch)).resource).toBe(`${SERVER}/`)
     const none = { ...baseRoutes(), 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp': { ...PRM, resource: undefined } }
     expect((await discoverAuth(SERVER, {}, router(none).fetch)).resource).toBe(SERVER)
+  })
+
+  it('rejects metadata whose issuer differs from the discovered one', async () => {
+    const r = router({
+      ...baseRoutes(),
+      [`${ISSUER}/.well-known/oauth-authorization-server`]: { ...AS_META, issuer: 'https://evil.test' },
+    })
+    await expect(discoverAuth(SERVER, {}, r.fetch)).rejects.toMatchObject({ reason: 'no-auth-metadata' })
+  })
+
+  it('rejects a protected resource that is not the server URL, tolerating a trailing slash', async () => {
+    const bad = router({
+      ...baseRoutes(),
+      'https://mcp.example.com/.well-known/oauth-protected-resource/mcp': { ...PRM, resource: 'https://other.test/mcp' },
+    })
+    await expect(discoverAuth(SERVER, {}, bad.fetch)).rejects.toMatchObject({ reason: 'no-auth-metadata' })
+    const ok = router({
+      ...baseRoutes(),
+      'https://mcp.example.com/.well-known/oauth-protected-resource/mcp': { ...PRM, resource: `${SERVER}/` },
+    })
+    await expect(discoverAuth(SERVER, {}, ok.fetch)).resolves.toBeTruthy()
+  })
+
+  it.each(['authorization_endpoint', 'token_endpoint', 'registration_endpoint'])(
+    'rejects an unsafe %s',
+    async (field) => {
+      for (const bad of ['javascript:alert(1)', 'data:text/html,x', 'http://evil.test/x']) {
+        const r = router({
+          ...baseRoutes(),
+          [`${ISSUER}/.well-known/oauth-authorization-server`]: { ...AS_META, [field]: bad },
+        })
+        await expect(discoverAuth(SERVER, {}, r.fetch)).rejects.toMatchObject({ reason: 'no-auth-metadata' })
+      }
+    },
+  )
+
+  it('rejects an http authorization server and allows http localhost', async () => {
+    const r = router({
+      'https://mcp.example.com/.well-known/oauth-protected-resource/mcp': { ...PRM, authorization_servers: ['http://evil.test'] },
+    })
+    await expect(discoverAuth(SERVER, {}, r.fetch)).rejects.toMatchObject({ reason: 'no-auth-metadata' })
+    const local = 'http://localhost:9000'
+    const ok = router({
+      'http://localhost:3000/.well-known/oauth-protected-resource': { resource: 'http://localhost:3000', authorization_servers: [local] },
+      [`${local}/.well-known/oauth-authorization-server`]: {
+        ...AS_META, issuer: local, authorization_endpoint: `${local}/a`, token_endpoint: `${local}/t`, registration_endpoint: `${local}/r`,
+      },
+    })
+    await expect(discoverAuth('http://localhost:3000', {}, ok.fetch)).resolves.toBeTruthy()
+  })
+
+  it('rejects an http resource_metadata URL', async () => {
+    const r = router({ 'http://evil.test/prm': PRM, ...baseRoutes() })
+    await discoverAuth(SERVER, { resourceMetadata: 'http://evil.test/prm' }, r.fetch)
+    expect(r.calls.some((c) => c.url === 'http://evil.test/prm')).toBe(false)
   })
 
   it('throws no-pkce without S256', async () => {
@@ -293,6 +348,43 @@ describe('createMCPAuth', () => {
       json({ access_token: 'at', token_type: 'Bearer', refresh_token: 'rt', expires_in: 3600 }),
     )
     expect(await ctx.auth.onUnauthorized({})).toBe('retry')
+  })
+
+  it('keeps tokens and rethrows on a 503 during refresh, removes them on invalid_grant', async () => {
+    const ctx = await signedIn((init) =>
+      form(init).get('grant_type') === 'refresh_token'
+        ? new Response('down', { status: 503 })
+        : json({ access_token: 'at', token_type: 'Bearer', refresh_token: 'rt', expires_in: 3600 }),
+    )
+    await expect(ctx.auth.onUnauthorized({})).rejects.toMatchObject({ status: 503 })
+    expect(await ctx.storage.get(`p:tokens:${SERVER}`)).not.toBeNull()
+  })
+
+  it('rejects a pending flow created for another server and exchanges against the snapshot', async () => {
+    const shared = resolveMCPStorage('memory')
+    const mk = (serverUrl: string, r: ReturnType<typeof router>) =>
+      createMCPAuth({ serverUrl, storage: shared, clientName: 'App', redirectUri: 'https://app.test/mcp/callback', fetch: r.fetch })
+    const r1 = router(tokenRoutes())
+    const a = mk(SERVER, r1)
+    const { state } = await a.startAuthorization()
+    const other = 'https://mcp.other.test/mcp'
+    const r2 = router({
+      'https://mcp.other.test/.well-known/oauth-protected-resource/mcp': { ...PRM, resource: other },
+      [`${ISSUER}/.well-known/oauth-authorization-server`]: AS_META,
+      [`${ISSUER}/token`]: () => json({ access_token: 'x', token_type: 'Bearer' }),
+    })
+    await expect(mk(other, r2).finishAuthorization({ state, code: 'c' })).rejects.toMatchObject({ code: 'invalid_state' })
+    expect(r2.calls.some((c) => c.url.endsWith('/token'))).toBe(false)
+
+    // same server, discovery changed after start: exchange still hits the original token endpoint
+    const { state: s2 } = await a.startAuthorization()
+    await shared.set(
+      `discovery:${SERVER}`,
+      JSON.stringify({ resource: SERVER, metadata: { ...AS_META, token_endpoint: 'https://evil.test/token' } }),
+    )
+    await a.finishAuthorization({ state: s2, code: 'c' })
+    expect(r1.calls.filter((c) => c.url === `${ISSUER}/token`).length).toBe(1)
+    expect(r1.calls.some((c) => c.url === 'https://evil.test/token')).toBe(false)
   })
 
   it('logout removes tokens but keeps the client registration', async () => {
