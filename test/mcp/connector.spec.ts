@@ -236,6 +236,9 @@ function memoryStore() {
   return { data, store }
 }
 
+/** Test DNS: every fake host is public, `*.internal.test` is private */
+const testResolve = vi.fn(async (host: string) => (host.endsWith('.internal.test') ? ['10.0.0.7'] : ['93.184.216.34']))
+
 function setup(over: Partial<MCPConnectorOptions> = {}) {
   const { data, store } = memoryStore()
   const user = vi.fn((r: Request) => r.headers.get('X-User'))
@@ -248,6 +251,7 @@ function setup(over: Partial<MCPConnectorOptions> = {}) {
     store,
     secret: 'test-secret-that-is-long-enough',
     fetch: testFetch,
+    resolve: testResolve,
     ...over,
   })
   const bodies: string[] = []
@@ -258,8 +262,10 @@ function setup(over: Partial<MCPConnectorOptions> = {}) {
     return response
   }
 
-  function call(method: string, path: string, o: { user?: string | null; body?: unknown } = {}) {
-    const headers = new Headers({ Origin: APP })
+  function call(method: string, path: string, o: { user?: string | null; body?: unknown; origin?: string | null } = {}) {
+    const headers = new Headers()
+    const origin = o.origin === undefined ? APP : o.origin
+    if (origin) headers.set('Origin', origin)
     const who = o.user === undefined ? 'alice' : o.user
     if (who) headers.set('X-User', who)
     if (o.body !== undefined) headers.set('Content-Type', 'application/json')
@@ -707,5 +713,204 @@ describe('createMCPConnector', () => {
     expect(response.status).toBe(502)
     expect((await response.json()).error).toMatch(/timed out connecting to hang\.test/i)
     expect(await t.entry('hang')).toMatchObject({ state: 'error' })
+  })
+})
+
+describe('createMCPConnector: shared registrations and scopes', () => {
+  it('two users signing in to the same server register the client once', async () => {
+    const t = setup()
+    await t.signIn('demo', 'alice')
+    await t.signIn('demo', 'bob')
+    expect(world.registrations).toBe(1)
+    expect(t.data.has('shared:client:https://auth.test')).toBe(true)
+    expect([...t.data.keys()].some(k => k.startsWith('u:') && k.includes(':client:'))).toBe(false)
+    expect(t.data.has('u:alice:tokens:https://mcp.test/mcp')).toBe(true)
+    expect(t.data.has('u:bob:tokens:https://mcp.test/mcp')).toBe(true)
+    expect(await t.entry('demo', 'bob')).toMatchObject({ state: 'connected' })
+  })
+
+  it('passes preset oauth scopes as the scope', async () => {
+    const t = setup({ servers: [{ ...github, oauth: { ...GH_CLIENT, scopes: ['repo', 'read:org'] } }] })
+    const response = await t.call('POST', '/servers/gh/authorize')
+    const { url } = await response.json() as { url: string }
+    expect(new URL(url).searchParams.get('scope')).toBe('repo read:org')
+  })
+})
+
+describe('createMCPConnector security', () => {
+  function preflight(t: ReturnType<typeof setup>, origin: string) {
+    return t.handle(new Request(`${APP}/api/mcp/servers/demo/enable`, {
+      method: 'OPTIONS',
+      headers: { 'Origin': origin, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type' },
+    }))
+  }
+
+  it('answers preflight only for allowedOrigins with credentials', async () => {
+    const FRONT = 'https://front.example.com'
+    const t = setup({ allowedOrigins: [FRONT] })
+    const ok = await preflight(t, FRONT)
+    expect(ok.status).toBe(204)
+    expect(ok.headers.get('Access-Control-Allow-Origin')).toBe(FRONT)
+    expect(ok.headers.get('Access-Control-Allow-Credentials')).toBe('true')
+    expect(ok.headers.get('Access-Control-Allow-Methods')).toBe('GET, POST, DELETE')
+    expect(ok.headers.get('Access-Control-Allow-Headers')).toBe('Content-Type, Authorization')
+    expect(ok.headers.get('Vary')).toContain('Origin')
+
+    for (const origin of ['https://evil.example.com', APP]) {
+      const bad = await preflight(t, origin)
+      expect(bad.status, origin).toBe(403)
+      expect(bad.headers.get('Access-Control-Allow-Origin')).toBeNull()
+      expect(bad.headers.get('Access-Control-Allow-Credentials')).toBeNull()
+    }
+
+    // Default: the origin of publicUrl
+    expect((await preflight(setup(), APP)).status).toBe(204)
+    expect((await preflight(setup(), FRONT)).status).toBe(403)
+
+    // Responses to allowed origins carry the CORS headers
+    const listed = await t.call('GET', '/servers', { origin: FRONT })
+    expect(listed.status).toBe(200)
+    expect(listed.headers.get('Access-Control-Allow-Origin')).toBe(FRONT)
+    expect(listed.headers.get('Access-Control-Allow-Credentials')).toBe('true')
+    expect(listed.headers.get('Vary')).toContain('Origin')
+    const enabled = await t.call('POST', '/servers/open/enable', { origin: FRONT })
+    expect(enabled.status).toBe(200)
+    expect(enabled.headers.get('Access-Control-Allow-Origin')).toBe(FRONT)
+  })
+
+  it('rejects a mutating request with a foreign or missing Origin', async () => {
+    const t = setup()
+    const routes: [string, string, unknown?][] = [
+      ['POST', '/servers', { url: 'https://mcp2.test/mcp' }],
+      ['DELETE', '/servers/demo'],
+      ['POST', '/servers/demo/enable'],
+      ['POST', '/servers/demo/disable'],
+      ['POST', '/servers/demo/authorize'],
+      ['POST', '/servers/demo/logout'],
+    ]
+    for (const origin of ['https://evil.example.com', 'null', null]) {
+      for (const [method, path, body] of routes) {
+        const response = await t.call(method, path, { body, origin })
+        expect(response.status, `${method} ${path} from ${origin}`).toBe(403)
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBeNull()
+      }
+    }
+    expect(await t.entry('demo')).toMatchObject({ enabled: false })
+    expect((await t.list()).some(s => s.custom)).toBe(false)
+    expect(world.registrations).toBe(0)
+
+    // GET: a foreign Origin is rejected, a missing one (same-origin GET) is allowed
+    expect((await t.call('GET', '/servers', { origin: 'https://evil.example.com' })).status).toBe(403)
+    const sameOrigin = await t.call('GET', '/servers', { origin: null })
+    expect(sameOrigin.status).toBe(200)
+    expect(sameOrigin.headers.get('Access-Control-Allow-Origin')).toBeNull()
+
+    // The callback is a top-level navigation from the provider: exempt
+    const callback = await t.call('GET', '/callback?state=nope&code=x', { origin: 'https://auth.test' })
+    expect(callback.status).toBe(400)
+    expect(callback.headers.get('Content-Type')).toBe('text/html; charset=utf-8')
+  })
+
+  it('refuses to start without secret when NODE_ENV is production', () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    try {
+      expect(() => setup({ secret: undefined })).toThrow(/secret/)
+      expect(() => setup()).not.toThrow()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const t = setup({ secret: undefined })
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(String(warn.mock.calls[0][0])).toMatch(/secret/)
+      void t
+      setup()
+      expect(warn).toHaveBeenCalledTimes(1)
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('rejects custom servers on private, loopback or metadata addresses', async () => {
+    const t = setup()
+    for (const url of [
+      'https://127.0.0.1/mcp',
+      'https://10.0.0.1/mcp',
+      'https://[::1]/mcp',
+      'http://localhost:3000/mcp',
+      'https://169.254.169.254/mcp',
+      'https://db.internal.test/mcp',
+    ]) {
+      const response = await t.call('POST', '/servers', { body: { url } })
+      expect(response.status, url).toBe(400)
+    }
+    expect((await t.list()).some(s => s.custom)).toBe(false)
+  })
+
+  it('guards metadata URLs taken from responses', async () => {
+    const counting = vi.fn(testFetch)
+    // auth.test (named by the servers' metadata) resolves to a private address
+    const resolve = async (host: string) => (host === 'auth.test' ? ['10.0.0.9'] : ['93.184.216.34'])
+    const t = setup({ fetch: counting, resolve })
+    expect((await t.call('POST', '/servers', { body: { url: 'https://mcp2.test/mcp' } })).status).toBe(201)
+    const custom = await t.call('POST', '/servers/mcp2/authorize')
+    expect(custom.status).toBe(502)
+    expect((await custom.json()).error).toMatch(/auth\.test/)
+    expect(await t.entry('mcp2')).toMatchObject({ state: 'unsupported' })
+    // A catalog server's own host is trusted; the hosts its metadata names are not
+    const catalog = await t.call('POST', '/servers/demo/authorize')
+    expect(catalog.status).toBe(502)
+    expect(counting.mock.calls.some(([input]) => new URL(String(input)).hostname === 'auth.test')).toBe(false)
+    expect(counting.mock.calls.some(([input]) => new URL(String(input)).hostname === 'mcp.test')).toBe(true)
+  })
+
+  it('allowHosts restricts custom servers and the hosts their sign-in reaches', async () => {
+    const narrow = setup({ allowHosts: ['mcp2.test'] })
+    expect((await narrow.call('POST', '/servers', { body: { url: 'https://mcp2.test/mcp' } })).status).toBe(201)
+    expect((await narrow.call('POST', '/servers/mcp2/authorize')).status).toBe(502)
+    // Catalog servers are not limited by allowHosts
+    expect((await narrow.call('POST', '/servers/demo/authorize')).status).toBe(200)
+
+    // allowHosts alone is enough without a DNS resolver
+    const t = setup({ allowHosts: ['mcp2.test', 'auth.test'], resolve: null })
+    expect((await t.call('POST', '/servers', { body: { url: 'https://mcp2.test/mcp' } })).status).toBe(201)
+    await t.signIn('mcp2')
+    expect((await t.toolsFor()).map(tool => tool.name)).toContain('mcp2_echo')
+  })
+
+  it('connector refuses allowCustom without allowHosts when no resolver is available', async () => {
+    expect(() => setup({ resolve: null })).toThrow(/allowHosts/)
+    expect(() => setup({ resolve: null, allowCustom: false })).not.toThrow()
+    expect(() => setup({ resolve: null, allowHosts: ['*.test'] })).not.toThrow()
+
+    // Found out lazily when node:dns can't be loaded (edge runtimes)
+    vi.resetModules()
+    vi.doMock('../../src/mcp/ssrf.js', async importOriginal => ({
+      ...await importOriginal<typeof import('../../src/mcp/ssrf.js')>(),
+      loadNodeResolver: async () => undefined,
+    }))
+    try {
+      const { createMCPConnector: create } = await import('../../src/mcp/connector.js')
+      const { store } = memoryStore()
+      const connector = create({
+        basePath: '/api/mcp', publicUrl: APP, servers: [open], allowCustom: true,
+        user: () => 'alice', store, secret: 'test-secret-that-is-long-enough', fetch: testFetch,
+      })
+      const add = await connector.handler(new Request(`${APP}/api/mcp/servers`, {
+        method: 'POST',
+        headers: { 'Origin': APP, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://mcp2.test/mcp' }),
+      }))
+      expect(add.status).toBe(500)
+      expect((await add.json()).error).toMatch(/allowHosts/)
+      const list = await connector.handler(new Request(`${APP}/api/mcp/servers`, { headers: { Origin: APP } }))
+      expect(list.status).toBe(200)
+      const enabled = await connector.handler(new Request(`${APP}/api/mcp/servers/open/enable`, { method: 'POST', headers: { Origin: APP } }))
+      expect(enabled.status).toBe(200)
+    } finally {
+      vi.doUnmock('../../src/mcp/ssrf.js')
+      vi.resetModules()
+    }
   })
 })

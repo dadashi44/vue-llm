@@ -18,7 +18,7 @@ export default defineConfig({
       formats: ['es', 'cjs'],
     },
     rollupOptions: {
-      external: ['vue', '@nuxt/kit', '@vue/devtools-api'],
+      external: ['vue', '@nuxt/kit', '@vue/devtools-api', 'node:dns'],
       output: {
         globals: { vue: 'Vue' },
       },

@@ -263,6 +263,30 @@ describe('createMCPAuth', () => {
     expect(q.get('scope')).toBe('a b')
   })
 
+  it('uses the scope option only when the challenge and metadata give none', async () => {
+    const noScopes = { ...tokenRoutes(), 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp': { ...PRM, scopes_supported: undefined } }
+    const fallback = make(noScopes, { scope: 'repo read:org' })
+    expect(new URL((await fallback.auth.startAuthorization()).url).searchParams.get('scope')).toBe('repo read:org')
+
+    const fromMetadata = make(tokenRoutes(), { scope: 'repo read:org' })
+    expect(new URL((await fromMetadata.auth.startAuthorization()).url).searchParams.get('scope')).toBe('a b')
+
+    const fromChallenge = make(tokenRoutes(), { scope: 'repo read:org' })
+    await fromChallenge.auth.onUnauthorized({ scope: 'from-challenge' })
+    expect(new URL((await fromChallenge.auth.startAuthorization()).url).searchParams.get('scope')).toBe('from-challenge')
+  })
+
+  it('clientKeyPrefix keys only the client registration', async () => {
+    const { auth, storage } = make(tokenRoutes(), { clientKeyPrefix: 'shared:' })
+    const { state } = await auth.startAuthorization()
+    expect(await storage.get(`shared:client:${ISSUER}`)).toContain('cid')
+    expect(await storage.get(`p:client:${ISSUER}`)).toBeNull()
+    expect(await storage.get(`p:discovery:${SERVER}`)).not.toBeNull()
+    expect(await storage.get(`p:pending:${state}`)).not.toBeNull()
+    await auth.finishAuthorization({ state, code: 'c' })
+    expect(await storage.get(`p:tokens:${SERVER}`)).not.toBeNull()
+  })
+
   it('exchanges the code and stores tokens with expires_at', async () => {
     const { auth, calls, storage } = make(tokenRoutes())
     const { state } = await auth.startAuthorization()

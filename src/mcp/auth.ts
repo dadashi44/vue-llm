@@ -31,11 +31,18 @@ export interface CreateMCPAuthOptions {
   storage: MCPAuthStorage
   pendingStorage?: MCPAuthStorage
   keyPrefix?: string
+  /**
+   * Prefix of the stored client registration (`client:<issuer>`) only; default `keyPrefix`.
+   * Lets several users share one registration per authorization server.
+   */
+  clientKeyPrefix?: string
   clientName: string
   redirectUri: string
   fetch?: typeof fetch
   /** Pre-registered client (servers without dynamic registration); never stored */
   client?: OAuthClient
+  /** Requested when neither the `WWW-Authenticate` challenge nor the resource metadata names a scope */
+  scope?: string
 }
 
 interface Discovery {
@@ -72,7 +79,7 @@ export function createMCPAuth(o: CreateMCPAuthOptions): MCPAuth {
   const pendingStorage = o.pendingStorage ?? o.storage
   const tokensKey = `${prefix}tokens:${o.serverUrl}`
   const discoveryKey = `${prefix}discovery:${o.serverUrl}`
-  const clientKey = (issuer: string) => `${prefix}client:${issuer}`
+  const clientKey = (issuer: string) => `${o.clientKeyPrefix ?? prefix}client:${issuer}`
   const pendingKey = (state: string) => `${prefix}pending:${state}`
 
   let refreshing: Promise<OAuthTokens | undefined> | undefined
@@ -200,7 +207,7 @@ export function createMCPAuth(o: CreateMCPAuthOptions): MCPAuth {
         challenge: pkce.challenge,
         state,
         resource: d.resource,
-        scope: d.scope,
+        scope: d.scope ?? o.scope,
       })
       return { url, state }
     },

@@ -3,6 +3,7 @@ import { createMCPClient, type MCPHttpClient } from './client.js'
 import { decryptValue, encryptValue } from './crypto.js'
 import { MCPAuthError, MCPHTTPError, MCPProtocolError, MCPUnsupportedServerError } from './errors.js'
 import type { MCPServerPreset } from './servers.js'
+import { assertPublicHost, guardedFetch, loadNodeResolver, type MCPHostResolver } from './ssrf.js'
 import type { MCPAuthStorage } from './storage.js'
 import { mcpTools, type MCPTool } from './tools.js'
 import { checkUrl, idFromHost } from './url.js'
@@ -23,19 +24,34 @@ export interface MCPConnectorOptions {
   basePath: string
   /** Absolute origin of the app (`https://app.example.com`); the OAuth callback is `${publicUrl}${basePath}/callback` */
   publicUrl: string
-  /** Frontend origins; default the origin of `publicUrl`. The first one receives the callback message */
+  /**
+   * Frontend origins allowed to call the routes (CORS with credentials, CSRF check on `Origin`);
+   * default the origin of `publicUrl`. The first one receives the callback message
+   */
   allowedOrigins?: string[]
   /** The catalog every user can turn on */
   servers: (MCPServerPreset | MCPConnectorServer)[]
-  /** Lets users add servers by URL. Default `false` */
+  /**
+   * Lets users add servers by URL. Default `false`. The backend then fetches URLs chosen by
+   * users: private, loopback and link-local addresses are always refused, and without
+   * `allowHosts` every host is resolved and refused if it points inside the network
+   * (needs `node:dns`: on runtimes without it `allowHosts` is required)
+   */
   allowCustom?: boolean
-  /** Host patterns custom servers must match: `example.com` or `*.example.com` */
+  /**
+   * Host patterns (`example.com`, `*.example.com`) for custom servers and every host their
+   * sign-in reaches (metadata, authorization server). Recommended in production: the DNS check
+   * alone can't rule out DNS rebinding. Catalog servers are not limited by it
+   */
   allowHosts?: string[]
   /** Whose connections these are: a stable user id, or `null` when signed out (401) */
   user: (request: Request) => string | null | Promise<string | null>
   /** Where tokens, client registrations and each user's list live (any async key-value store) */
   store: MCPAuthStorage
-  /** Encrypts every stored value (AES-GCM); without it values are stored in plain text */
+  /**
+   * Encrypts every stored value (AES-GCM). Required when `NODE_ENV` is `production`;
+   * without it (in development) values are stored in plain text and a warning is logged
+   */
   secret?: string
   /** Shown on the providers' consent screens; default the host of `publicUrl` */
   clientName?: string
@@ -46,6 +62,12 @@ export interface MCPConnectorOptions {
    * listing tools). A server that misses it is skipped and shown as `error`. Default `10_000`
    */
   timeout?: number
+  /**
+   * Resolves host names for the SSRF check of hosts the developer didn't configure. Default:
+   * `node:dns` where it loads; `null` means no resolver (then `allowCustom` needs `allowHosts`).
+   * For tests and custom DNS
+   */
+  resolve?: MCPHostResolver | null
 }
 
 export type MCPConnectorState = 'connected' | 'needs-auth' | 'unsupported' | 'error'
@@ -126,12 +148,23 @@ const DEFAULT_TIMEOUT_MS = 10_000
 const CHANNEL = 'vue-llm:mcp'
 const MESSAGE_TYPE = 'vue-llm:mcp-callback'
 const ACTIONS = new Set(['enable', 'disable', 'authorize', 'logout'])
+/** Where the client registration per authorization server is stored, shared by all users */
+const SHARED_PREFIX = 'shared:'
+const NO_RESOLVER = 'createMCPConnector: allowCustom without allowHosts needs a DNS resolver (node:dns), which this runtime does not have. Set allowHosts'
 
 /** A server-side network failure (DNS, refused, TLS): not the browser's CORS case */
 class MCPNetworkError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'MCPNetworkError'
+  }
+}
+
+/** The connector can't do this safely with its configuration */
+class MCPConfigError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'MCPConfigError'
   }
 }
 
@@ -211,14 +244,6 @@ function wrapStore(store: MCPAuthStorage, secret: string | undefined): MCPAuthSt
   }
 }
 
-function matchesHost(host: string, patterns: string[]): boolean {
-  const h = host.toLowerCase()
-  return patterns.some((p) => {
-    const pattern = p.toLowerCase()
-    return pattern.startsWith('*.') ? h.endsWith(pattern.slice(1)) : h === pattern
-  })
-}
-
 /** JSON for a `<script>`: nothing can close the element or break the JS string */
 function scriptJSON(value: unknown): string {
   return JSON.stringify(value)
@@ -240,7 +265,7 @@ function json(body: unknown, status = 200): Response {
 function failure(error: unknown): { state: MCPConnectorState; error: string } {
   if (error instanceof MCPUnsupportedServerError) return { state: 'unsupported', error: error.message }
   if (error instanceof MCPAuthError) return { state: 'needs-auth', error: error.message }
-  if (error instanceof MCPTimeoutError || error instanceof MCPNetworkError || error instanceof MCPHTTPError || error instanceof MCPProtocolError) {
+  if (error instanceof MCPTimeoutError || error instanceof MCPNetworkError || error instanceof MCPConfigError || error instanceof MCPHTTPError || error instanceof MCPProtocolError) {
     return { state: 'error', error: error.message }
   }
   return { state: 'error', error: 'Unexpected error while connecting to the server' }
@@ -274,7 +299,23 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
   }
   const publicUrl = o.publicUrl.replace(/\/+$/, '')
   const redirectUri = `${publicUrl}${basePath}/callback`
-  const frontendOrigin = o.allowedOrigins?.[0] ?? publicOrigin
+  const origins = (o.allowedOrigins ?? [publicOrigin]).map((value) => {
+    try {
+      return new URL(value).origin
+    } catch {
+      throw new Error(`createMCPConnector: allowedOrigins must be origins such as https://app.example.com, got "${value}"`)
+    }
+  })
+  const allowedOrigins = new Set(origins)
+  const frontendOrigin = origins[0] ?? publicOrigin
+  if (o.allowCustom && !o.allowHosts && o.resolve === null) throw new Error(NO_RESOLVER)
+  if (!o.secret) {
+    const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+    if (env?.NODE_ENV === 'production') {
+      throw new Error('createMCPConnector: secret is required in production; it encrypts the stored tokens')
+    }
+    console.warn('[vue-llm] createMCPConnector: no secret, so tokens are stored unencrypted. Set secret (required when NODE_ENV is production)')
+  }
   const clientName = o.clientName ?? new URL(publicUrl).host
   const storage = wrapStore(o.store, o.secret)
   const timeoutMs = o.timeout ?? DEFAULT_TIMEOUT_MS
@@ -295,13 +336,57 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
   }
 
   const baseFetch: typeof fetch = o.fetch ?? ((...args) => globalThis.fetch(...args))
-  /** Every outbound request (discovery, registration, tokens, MCP) goes through here */
-  const fetchFn: typeof fetch = async (input, init) => {
+  /** Hosts of the developer's catalog: trusted, though their redirects are still checked */
+  const trustedHosts = new Set<string>()
+  for (const s of catalog) {
     try {
-      return await baseFetch(input, init)
-    } catch (error) {
-      if (error instanceof TypeError) throw new MCPNetworkError(`Could not reach ${hostOf(input)}`)
-      throw error
+      trustedHosts.add(new URL(s.url).host.toLowerCase())
+    } catch {
+      throw new Error(`createMCPConnector: server "${s.id}" has an invalid url`)
+    }
+  }
+  const isTrusted = (url: URL) => trustedHosts.has(url.host.toLowerCase())
+
+  let resolver: Promise<MCPHostResolver | undefined> | undefined
+  /** The DNS resolver, loaded once; DNS failures surface as network errors */
+  function getResolver(): Promise<MCPHostResolver | undefined> {
+    resolver ??= (o.resolve !== undefined ? Promise.resolve(o.resolve ?? undefined) : loadNodeResolver()).then(
+      resolve => resolve && (async (host: string) => {
+        try {
+          return await resolve(host)
+        } catch {
+          throw new MCPNetworkError(`Could not resolve ${host}`)
+        }
+      }),
+    )
+    return resolver
+  }
+
+  /** Custom servers can be guarded: by allowHosts, or by the DNS check */
+  async function assertCustomAllowed() {
+    if (!o.allowHosts && !(await getResolver())) throw new HttpError(500, NO_RESOLVER)
+  }
+
+  /**
+   * Every outbound request for server `s` (discovery, registration, tokens, MCP) goes through
+   * here: SSRF-guarded (catalog hosts trusted; `allowHosts` applied for custom servers), with
+   * network failures reported as such.
+   */
+  function outboundFetch(s: Resolved): typeof fetch {
+    return async (input, init) => {
+      const resolve = await getResolver()
+      if (s.custom && !o.allowHosts && !resolve) throw new MCPConfigError(NO_RESOLVER)
+      const guarded = guardedFetch(baseFetch, {
+        allowHosts: s.custom ? o.allowHosts : undefined,
+        resolve,
+        trusted: isTrusted,
+      })
+      try {
+        return await guarded(input, init)
+      } catch (error) {
+        if (error instanceof TypeError) throw new MCPNetworkError(`Could not reach ${hostOf(input)}`)
+        throw error
+      }
     }
   }
 
@@ -328,8 +413,9 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
     }
   }
 
-  /** `fetchFn` that also follows the deadline while one is set */
-  function deadlineFetch(deadline: Deadline): typeof fetch {
+  /** `outboundFetch` that also follows the deadline while one is set */
+  function deadlineFetch(s: Resolved, deadline: Deadline): typeof fetch {
+    const fetchFn = outboundFetch(s)
     return (input, init) => {
       const signal = deadline.signal
       return fetchFn(input, signal ? { ...init, signal: anySignal(init?.signal, signal) } : init)
@@ -402,16 +488,19 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
       storage,
       pendingStorage: storage,
       keyPrefix: userPrefix(userId),
+      // One registration per authorization server for all users (the redirect URI is the same)
+      clientKeyPrefix: SHARED_PREFIX,
       clientName,
       redirectUri,
-      fetch: deadlineFetch(deadline),
+      fetch: deadlineFetch(s, deadline),
       ...(s.oauth ? { client: { client_id: s.oauth.clientId, client_secret: s.oauth.clientSecret } } : {}),
+      ...(s.oauth?.scopes?.length ? { scope: s.oauth.scopes.join(' ') } : {}),
     })
   }
 
   function clientFor(userId: string, s: Resolved, deadline: Deadline = {}): { auth: MCPAuth; client: MCPHttpClient } {
     const auth = authFor(userId, s, deadline)
-    return { auth, client: createMCPClient({ url: s.url, auth, fetch: deadlineFetch(deadline) }) }
+    return { auth, client: createMCPClient({ url: s.url, auth, fetch: deadlineFetch(s, deadline) }) }
   }
 
   const cache = new Map<string, CacheEntry>()
@@ -510,8 +599,14 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
     const input = body.url.trim()
     const url = checkUrl(input)
     if (url instanceof Error) throw new HttpError(400, url.message)
-    if (o.allowHosts && !matchesHost(url.hostname, o.allowHosts)) {
-      throw new HttpError(400, `${url.hostname} is not an allowed MCP host`)
+    await assertCustomAllowed()
+    if (!isTrusted(url)) {
+      try {
+        await assertPublicHost(url, { allowHosts: o.allowHosts, resolve: await getResolver() })
+      } catch (error) {
+        if (error instanceof MCPUnsupportedServerError || error instanceof MCPNetworkError) throw new HttpError(400, error.message)
+        throw error
+      }
     }
     const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : url.host
     const id = await update(userId, (d) => {
@@ -576,6 +671,7 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
   }
 
   async function action(userId: string, s: Resolved, name: string): Promise<Response> {
+    if (s.custom && name !== 'disable') await assertCustomAllowed()
     if (name === 'authorize') return authorize(userId, s)
     if (name === 'enable') {
       await update(userId, (d) => {
@@ -655,11 +751,38 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
     })
   }
 
+  function corsHeaders(origin: string): Record<string, string> {
+    return {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Credentials': 'true',
+      'Vary': 'Origin',
+    }
+  }
+
   /**
-   * Request-level policy for every route (the place for Origin and CORS checks).
+   * Origin and CORS policy for every route but the callback (a top-level navigation from the
+   * provider). Preflights are answered for `allowedOrigins` only; a foreign `Origin` is refused
+   * everywhere, and mutating routes require an allowed one (CSRF).
    * Returns a response to stop the request, or `undefined` to let it through.
    */
-  function guard(_request: Request, _route: string): Response | undefined {
+  function guard(request: Request, route: string): Response | undefined {
+    if (route === 'callback') return undefined
+    const origin = request.headers.get('Origin')
+    const allowed = origin !== null && allowedOrigins.has(origin)
+    if (request.method === 'OPTIONS') {
+      if (!allowed) return json({ error: 'Origin not allowed' }, 403)
+      return new Response(null, {
+        status: 204,
+        headers: {
+          ...corsHeaders(origin),
+          'Access-Control-Allow-Methods': 'GET, POST, DELETE',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+      })
+    }
+    if (origin !== null && !allowed) return json({ error: 'Origin not allowed' }, 403)
+    const safe = request.method === 'GET' || request.method === 'HEAD'
+    if (!safe && !allowed) return json({ error: 'Missing or disallowed Origin header' }, 403)
     return undefined
   }
 
@@ -709,12 +832,19 @@ export function createMCPConnector(o: MCPConnectorOptions): MCPConnector {
 
   return {
     async handler(request) {
+      let response: Response
       try {
-        return await route(request)
+        response = await route(request)
       } catch (error) {
-        if (error instanceof HttpError) return json({ error: error.message }, error.status)
-        return json({ error: 'Internal error' }, 500)
+        response = error instanceof HttpError ? json({ error: error.message }, error.status) : json({ error: 'Internal error' }, 500)
       }
+      const origin = request.headers.get('Origin')
+      const callbackPath = new URL(request.url).pathname === `${basePath}/callback`
+      // The guard refused every other origin, so these headers only reach allowed ones
+      if (origin && allowedOrigins.has(origin) && !callbackPath) {
+        for (const [name, value] of Object.entries(corsHeaders(origin))) response.headers.set(name, value)
+      }
+      return response
     },
 
     async toolsFor(request) {

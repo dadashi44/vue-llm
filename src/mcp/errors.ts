@@ -12,7 +12,7 @@ export class MCPHTTPError extends Error {
 
 /** The server can't be used from this environment */
 export class MCPUnsupportedServerError extends Error {
-  reason: 'cors' | 'no-registration' | 'no-pkce' | 'no-auth-metadata'
+  reason: 'cors' | 'no-registration' | 'no-pkce' | 'no-auth-metadata' | 'blocked-host'
   constructor(reason: MCPUnsupportedServerError['reason'], message?: string) {
     super(message ?? `MCP server is not supported: ${reason}`)
     this.name = 'MCPUnsupportedServerError'
