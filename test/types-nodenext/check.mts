@@ -1,7 +1,7 @@
 // Type-checks the built package (dist/) the way a Node.js project with
 // moduleResolution "nodenext" sees it. Run `npm run build` first.
 // Regression test for https://github.com/dadashi44/vue-llm/issues/25
-import { useChat, useCompletion, useObject, useMCP, useMCPServers } from 'vue-llm'
+import { useChat, useCompletion, useObject, useMCP, useMCPServers, toUIMessages } from 'vue-llm'
 import { createOpenAI, createAnthropic } from 'vue-llm/providers'
 import { MessageParts, StreamMarkdown, renderMarkdown } from 'vue-llm/components'
 import { createLLMHandler, streamToSSE, createMCPConnector } from 'vue-llm/server'
@@ -28,6 +28,7 @@ assertTyped(LLMDevtools)
 assertTyped(mcpTools)
 assertTyped(useMCP)
 assertTyped(useMCPServers)
+assertTyped(toUIMessages)
 assertTyped(createMCPConnector)
 assertTyped(createMCPClient)
 assertTyped(handleMCPCallback)

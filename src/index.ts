@@ -20,6 +20,9 @@ export type { UseMCPOptions, UseMCPBrowserOptions, UseMCPServerModeOptions, UseM
 export type { MCPServerModeOptions } from './composables/mcp-server-mode.js'
 
 export { useMCPServers } from './composables/use-mcp-servers.js'
+
+export { toUIMessages } from './utils/ui-messages.js'
+export type { AISDKUIMessage, AISDKUIPart } from './utils/ui-messages.js'
 export type { UseMCPServersOptions, UseMCPServersReturn, MCPServerItem, MCPServerEntry } from './composables/use-mcp-servers.js'
 export type { MCPServerPreset, MCPToolFilter } from './mcp/servers.js'
 export { createPrompt, createChatPrompt, renderTemplate } from './core/prompt.js'
