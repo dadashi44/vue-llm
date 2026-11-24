@@ -12,11 +12,14 @@ const html = computed(() => (props.render ?? renderMarkdown)(props.content))
 </script>
 
 <template>
-  <div class="vue-llm-markdown" v-html="html" />
-  <span v-if="streaming" class="vue-llm-cursor" aria-hidden="true">▊</span>
+  <!-- One root element, which Vue 2.7 requires -->
+  <div>
+    <div class="vue-llm-markdown" v-html="html" />
+    <span v-if="streaming" class="vue-llm-cursor" aria-hidden="true">▊</span>
+  </div>
 </template>
 
-<style scoped>
+<style>
 .vue-llm-cursor {
   animation: vue-llm-blink 0.7s step-end infinite;
 }

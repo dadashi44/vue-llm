@@ -66,6 +66,10 @@
       "types": "./dist/components.d.ts",
       "import": "./dist/components.js"
     },
+    "./components/vue2": {
+      "types": "./dist/vue2/components.d.ts",
+      "import": "./dist/vue2/components.js"
+    },
     "./server": {
       "types": "./dist/server.d.ts",
       "import": "./dist/server.js",
@@ -95,8 +99,8 @@
   },
   "scripts": {
     "dev": "vite --config playground/vite.config.ts",
-    "build": "vite build && vue-tsc -p tsconfig.build.json --emitDeclarationOnly && node scripts/fix-dts-vue-imports.mjs",
-    "typecheck:dist": "tsc -p test/types-nodenext",
+    "build": "vite build && vite build -c vite.vue2.config.ts && vue-tsc -p tsconfig.build.json --emitDeclarationOnly && node scripts/fix-dts-vue-imports.mjs",
+    "typecheck:dist": "tsc -p test/types-nodenext && tsc -p test/types-vue2",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "vue-tsc --noEmit",

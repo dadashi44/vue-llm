@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { configDefaults } from 'vitest/config'
 
 export default defineConfig({
   plugins: [vue()],
@@ -28,5 +29,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     include: ['test/**/*.spec.ts'],
+    // Vue 2.7 component specs run under `npm run test:vue2`
+    exclude: [...configDefaults.exclude, 'test/components-vue2/**'],
   },
 })
