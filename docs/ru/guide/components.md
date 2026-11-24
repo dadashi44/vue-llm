@@ -13,9 +13,18 @@ Nuxt-модуль регистрирует оба компонента и таб
 
 Полноценный стилизованный интерфейс чата описан в разделе [Chat UI](./chat-ui).
 
-::: info
-Компонентам нужен Vue 3. На Vue 2.7 используйте `renderMarkdown` вместе с `v-html` — это обычный TypeScript.
-:::
+## Vue 2.7 {#vue-2-7}
+
+На Vue 2.7 импортируйте те же компоненты из `vue-llm/components/vue2`. Они собираются из того же исходного кода компилятором Vue 2.7 и протестированы на Vue 2.7:
+
+```ts
+import { MessageParts, StreamMarkdown } from 'vue-llm/components/vue2'
+import 'vue-llm/style.css'
+```
+
+Props, слоты и событие `tool-result` те же. В render-функции передавайте props способом Vue 2: `h(MessageParts, { props: { message } })`.
+
+Для входа нужен сборщик, который понимает `exports` в `package.json` и современный синтаксис (`?.`, `??`), например Vite или webpack 5. На webpack 4 (Vue CLI 4, Nuxt 2) он не разрешается.
 
 ## MessageParts {#messageparts}
 
@@ -46,6 +55,8 @@ Nuxt-модуль регистрирует оба компонента и таб
 ## StreamMarkdown {#streammarkdown}
 
 Рендерит Markdown от модели прямо во время стриминга, с мигающим курсором.
+
+Компонент рендерит `div.vue-llm-stream`, внутри которого `div.vue-llm-markdown` и, пока идёт стриминг, `span.vue-llm-cursor`.
 
 ```vue
 <script setup lang="ts">

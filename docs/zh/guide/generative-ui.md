@@ -131,7 +131,7 @@ const components = { get_weather: WeatherCard, confirm_booking: BookingCard }
 </template>
 ```
 
-这种方式同样适用于无法使用 `vue-llm/components` 的 Vue 2.7。
+这种方式无需 `vue-llm/components`，适用于任何 Vue 版本。
 
 ## 流式参数 {#streaming-arguments}
 

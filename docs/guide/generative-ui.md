@@ -131,7 +131,7 @@ That's the whole setup. `get_weather` runs on its own, and the model continues o
 </template>
 ```
 
-This also works on Vue 2.7, where `vue-llm/components` is not available.
+This works without `vue-llm/components` and on any Vue version.
 
 ## Streaming arguments
 

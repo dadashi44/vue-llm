@@ -9,14 +9,17 @@ const props = defineProps<{
 }>()
 
 const html = computed(() => (props.render ?? renderMarkdown)(props.content))
+// One root element (`.vue-llm-stream`), which Vue 2.7 requires
 </script>
 
 <template>
-  <div class="vue-llm-markdown" v-html="html" />
-  <span v-if="streaming" class="vue-llm-cursor" aria-hidden="true">▊</span>
+  <div class="vue-llm-stream">
+    <div class="vue-llm-markdown" v-html="html" />
+    <span v-if="streaming" class="vue-llm-cursor" aria-hidden="true">▊</span>
+  </div>
 </template>
 
-<style scoped>
+<style>
 .vue-llm-cursor {
   animation: vue-llm-blink 0.7s step-end infinite;
 }

@@ -13,9 +13,18 @@ Nuxt モジュールを使うと、両方のコンポーネントとスタイル
 
 スタイル付きの完全なチャットインターフェースについては [チャット UI](./chat-ui) を参照してください。
 
-::: info
-コンポーネントには Vue 3 が必要です。Vue 2.7 では、プレーンな TypeScript である `renderMarkdown` を `v-html` と組み合わせて使用してください。
-:::
+## Vue 2.7 {#vue-2-7}
+
+Vue 2.7 では、同じコンポーネントを `vue-llm/components/vue2` からインポートします。同一のソースから Vue 2.7 のコンパイラでビルドされ、Vue 2.7 でテストされています。
+
+```ts
+import { MessageParts, StreamMarkdown } from 'vue-llm/components/vue2'
+import 'vue-llm/style.css'
+```
+
+props、スロット、`tool-result` イベントは同じです。render 関数では Vue 2 の方式で props を渡します：`h(MessageParts, { props: { message } })`。
+
+このエントリには、`package.json` の `exports` とモダンな構文（`?.`、`??`）を扱えるバンドラー（Vite や webpack 5 など）が必要です。webpack 4（Vue CLI 4、Nuxt 2）では解決できません。
 
 ## MessageParts
 
@@ -46,6 +55,8 @@ Nuxt モジュールを使うと、両方のコンポーネントとスタイル
 ## StreamMarkdown
 
 モデルからの Markdown を、ストリーミング中に点滅するカーソル付きで描画します。
+
+`div.vue-llm-stream` を描画し、その中に `div.vue-llm-markdown` と、ストリーミング中は `span.vue-llm-cursor` が入ります。
 
 ```vue
 <script setup lang="ts">

@@ -13,9 +13,18 @@ Nuxt 模块会为你自动注册这两个组件和样式表。
 
 如需一套完整、带样式的聊天界面，请参阅 [聊天界面](./chat-ui)。
 
-::: info
-组件需要 Vue 3。在 Vue 2.7 中，请将 `renderMarkdown` 与 `v-html` 搭配使用，它是纯 TypeScript 实现。
-:::
+## Vue 2.7 {#vue-2-7}
+
+在 Vue 2.7 中，请从 `vue-llm/components/vue2` 导入同样的组件。它们由同一份源码通过 Vue 2.7 编译器构建，并在 Vue 2.7 上经过测试：
+
+```ts
+import { MessageParts, StreamMarkdown } from 'vue-llm/components/vue2'
+import 'vue-llm/style.css'
+```
+
+props、插槽和 `tool-result` 事件均相同。在渲染函数中请按 Vue 2 的方式传入 props：`h(MessageParts, { props: { message } })`。
+
+该入口需要能读取 `package.json` 中 `exports` 并支持现代语法（`?.`、`??`）的打包工具，例如 Vite 或 webpack 5。在 webpack 4（Vue CLI 4、Nuxt 2）上无法解析。
 
 ## MessageParts
 
@@ -46,6 +55,8 @@ Nuxt 模块会为你自动注册这两个组件和样式表。
 ## StreamMarkdown
 
 在模型流式输出时渲染其 Markdown，并显示一个闪烁的光标。
+
+它渲染一个 `div.vue-llm-stream`，其中包含 `div.vue-llm-markdown`，流式输出期间还包含 `span.vue-llm-cursor`。
 
 ```vue
 <script setup lang="ts">

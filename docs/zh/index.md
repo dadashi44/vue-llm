@@ -88,7 +88,7 @@ vue-llm 是一个开源 TypeScript 库，为 Vue 和 Nuxt 应用添加 AI 与 LL
 
 ### vue-llm 支持 Vue 2 吗？ {#does-vue-llm-support-vue-2}
 
-组合式函数（useChat、useCompletion、useObject、usePrompt）支持 Vue 2.7 和 Vue 3.3+。组件需要 Vue 3。
+组合式函数（useChat、useCompletion、useObject、usePrompt）支持 Vue 2.7 和 Vue 3.3+。组件同样支持：在 Vue 2.7 中请从 `vue-llm/components/vue2` 导入。
 
 ### vue-llm 与 Vercel AI SDK 有什么不同？ {#how-is-vue-llm-different-from-the-vercel-ai-sdk}
 

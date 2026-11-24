@@ -84,3 +84,7 @@ description: 'Справочник API vue-llm: композаблы, прова
 ## `vue-llm/components` {#vue-llm-components}
 
 [`MessageParts`](/ru/guide/components#messageparts), [`StreamMarkdown`](/ru/guide/components#streammarkdown), [`renderMarkdown`](/ru/guide/components#security), `renderInline`, `escapeHTML`.
+
+## `vue-llm/components/vue2` {#vue-llm-components-vue2}
+
+Те же экспорты, собранные для [Vue 2.7](/ru/guide/components#vue-2-7), плюс типы `StreamMarkdownProps`, `MessagePartsProps`, `MessagePartsSlotProps`.

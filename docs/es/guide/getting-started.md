@@ -30,7 +30,7 @@ yarn add vue-llm
 |---|---|---|
 | Composables (`useChat`, `useCompletion`, `useObject`, `usePrompt`) | ✓ | ✓ |
 | Proveedores, middleware, almacenamiento, plantillas de prompts, servidor | ✓ | ✓ |
-| `vue-llm/components` | ✓ | — |
+| Componentes | `vue-llm/components` | [`vue-llm/components/vue2`](./components#vue-2-7) |
 | `vue-llm/nuxt` | Nuxt 3/4 | — |
 
 Vue 2.7 es compatible gracias a su Composition API integrada: usa los composables en `setup()` (los componentes con Options API también pueden llamarlos en `setup()`). Toda la suite de tests se ejecuta en ambas versiones en CI. Vue 2.6 y anteriores no son compatibles; pasar a 2.7 es una actualización menor.

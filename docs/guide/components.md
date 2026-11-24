@@ -13,9 +13,18 @@ The Nuxt module registers both components and the stylesheet for you.
 
 For a complete, styled chat interface see [Chat UI](./chat-ui).
 
-::: info
-Components require Vue 3. On Vue 2.7 use `renderMarkdown` with `v-html` — it is plain TypeScript.
-:::
+## Vue 2.7 {#vue-2-7}
+
+On Vue 2.7 import the same components from `vue-llm/components/vue2`. They are built from the same source with the Vue 2.7 compiler and tested on Vue 2.7:
+
+```ts
+import { MessageParts, StreamMarkdown } from 'vue-llm/components/vue2'
+import 'vue-llm/style.css'
+```
+
+Props, slots and the `tool-result` event are the same. In a render function pass props the Vue 2 way: `h(MessageParts, { props: { message } })`.
+
+The entry needs a bundler that reads `package.json` `exports` and modern syntax (`?.`, `??`), such as Vite or webpack 5. On webpack 4 (Vue CLI 4, Nuxt 2) it can't be resolved.
 
 ## MessageParts
 
@@ -46,6 +55,8 @@ The root element has `class="vue-llm-message"` and `data-role` set to the messag
 ## StreamMarkdown
 
 Renders Markdown from the model while it streams, with a blinking cursor.
+
+It renders `div.vue-llm-stream` holding `div.vue-llm-markdown` and, while streaming, `span.vue-llm-cursor`.
 
 ```vue
 <script setup lang="ts">

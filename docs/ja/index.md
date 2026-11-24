@@ -88,7 +88,7 @@ vue-llm をインストールし、プロバイダーを作成して（たとえ
 
 ### vue-llm は Vue 2 をサポートしていますか？ {#does-vue-llm-support-vue-2}
 
-コンポーザブル（useChat、useCompletion、useObject、usePrompt）は Vue 2.7 と Vue 3.3 以降で動作します。コンポーネントには Vue 3 が必要です。
+コンポーザブル（useChat、useCompletion、useObject、usePrompt）は Vue 2.7 と Vue 3.3 以降で動作します。コンポーネントも同様で、Vue 2.7 では `vue-llm/components/vue2` からインポートします。
 
 ### vue-llm は Vercel AI SDK と何が違いますか？ {#how-is-vue-llm-different-from-the-vercel-ai-sdk}
 
