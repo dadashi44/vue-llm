@@ -134,7 +134,7 @@ The frontend API is the same in both; you pick the mode per app.
 | User tokens | browser storage (`localStorage` by default) | your store (database, KV), encrypted |
 | Exposed to XSS on your app | yes | no — the browser never sees provider tokens |
 | Needs a backend | no | yes (a chat usually has one already for the model API key) |
-| Servers that work | those whose sign-in and CORS work from a browser: verified with Notion and Linear; Hugging Face and DeepWiki checked for browser access | Streamable HTTP servers whose sign-in can run on a backend; tested with the test servers in the vue-llm repo. GitHub needs your own OAuth app and is expected to work, but hasn't been verified yet |
+| Servers that work | those whose sign-in and CORS work from a browser: verified with Notion and Linear; Hugging Face and DeepWiki checked for browser access | Streamable HTTP servers whose sign-in can run on a backend: verified by hand through `createMCPConnector` with Notion and DeepWiki (November 2026). GitHub needs your own OAuth app and is expected to work, but hasn't been verified yet |
 | Where tools run | `useChat` in the browser | `createLLMHandler` on the server |
 
 Use server mode in production. Browser mode is the quick start when you have no backend.
@@ -333,7 +333,7 @@ export const mcp = createMCPConnector({
   servers: [mcpServers.notion, mcpServers.linear, mcpServers.deepwiki],
   user: request => getUserId(request), // your auth: a stable user id, or null when signed out
   store: useStorage('mcp'),
-  secret: process.env.MCP_SECRET,
+  secret: process.env.MCP_SECRET, // generate with: openssl rand -base64 32
 })
 ```
 
@@ -386,7 +386,7 @@ You don't write a callback page in server mode: the connector serves it at `${pu
 | `servers` | The catalog every user can turn on: presets or `{ id, url, name?, oauth? }`. Each takes `include` / `exclude` (see [Limiting tools](#limiting-tools)) |
 | `user` | Required. Returns the signed-in user's id for a request, or `null` (the routes then answer 401) |
 | `store` | Where tokens, registrations and each user's list live: any `get`/`set`/`remove`, sync or async. Nitro's `useStorage()` and unstorage fit as is. |
-| `secret` | Encrypts every stored value (AES-GCM). Required when `NODE_ENV` is `production`; in development, without it, values are stored in plain text and a warning is logged. |
+| `secret` | Encrypts every stored value (AES-GCM). Required when `NODE_ENV` is `production`; in development, without it, values are stored in plain text and a warning is logged. Generate a random one with `openssl rand -base64 32` and keep it out of your code (an environment variable). |
 | `allowCustom` | Lets users add servers by URL. Default `false`. Up to 20 per user, URLs up to 2048 characters and names up to 100 (400 otherwise); a URL already in the user's list gets 409 with that server's `id`. See [Security notes](#security-notes). |
 | `allowHosts` | Host patterns (`example.com`, `*.example.com`) allowed for user-added servers and their sign-in |
 | `timeout` | Deadline for connecting to one server, in ms. Default `10000`; a slower server is skipped and shown as an error. |
