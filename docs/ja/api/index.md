@@ -14,6 +14,8 @@ description: 'vue-llm の API リファレンス：コンポーザブル、プ�
 | [`useCompletion(options)`](/ja/guide/use-completion) | ストリーミング対応のシングルターン補完 |
 | [`useObject(options)`](/ja/guide/use-object) | 構造化された JSON 出力のストリーミング |
 | [`usePrompt(template, variables)`](/ja/guide/prompt-templates#useprompt) | リアクティブなプロンプトのレンダリング |
+| [`useMCP(options)`](/ja/guide/mcp#one-server-usemcp) | ユーザーが 1 つの MCP サーバーを接続する：サインイン、状態、リアクティブなツール |
+| [`useMCPServers(options?)`](/ja/guide/mcp#several-servers-usemcpservers) | ユーザーがオンにし、サインインし、URL で追加する MCP サーバーのリスト |
 
 ### チャット UI（ヘッドレス） {#chat-ui-headless}
 
@@ -50,7 +52,7 @@ description: 'vue-llm の API リファレンス：コンポーザブル、プ�
 
 ### 型 {#types}
 
-`UIMessage`, `UIMessagePart`, `TextPart`, `ReasoningPart`, `ToolCallPart`, `FilePart`, `SourcePart`, `ToolDefinition`, `ChatTool`, `ToolCallState`, `ToolExecutionContext`, `ToolComponentProps`, `DeepPartial`, `ChatStatus`, `FinishReason`, `Usage`, `LLMProvider`, `ChatRequest`, `ChatMessage`, `ContentPart`, `ChatStreamResult`, `ChatStreamChunk`, `ChatResponse`, `Middleware`, `ChatHandler`, `RetryOptions`, `RateLimitOptions`, `ChatStorage`, `WebStorageOptions`, `FileInput`, `SendMessageInput`, `PromptTemplate`, `ChatPromptTemplate`, `ChatPromptMessage`, `PromptOptions`, `PromptInput`, `PromptValue`, `PromptVariables`, `PromptVariableNames`、さらに各コンポーザブルの `Use*Options` / `Use*Return`。
+`UIMessage`, `UIMessagePart`, `TextPart`, `ReasoningPart`, `ToolCallPart`, `FilePart`, `SourcePart`, `ToolDefinition`, `ChatTool`, `ToolCallState`, `ToolExecutionContext`, `ToolComponentProps`, `DeepPartial`, `ChatStatus`, `FinishReason`, `Usage`, `LLMProvider`, `ChatRequest`, `ChatMessage`, `ContentPart`, `ChatStreamResult`, `ChatStreamChunk`, `ChatResponse`, `Middleware`, `ChatHandler`, `RetryOptions`, `RateLimitOptions`, `ChatStorage`, `WebStorageOptions`, `FileInput`, `SendMessageInput`, `PromptTemplate`, `ChatPromptTemplate`, `ChatPromptMessage`, `PromptOptions`, `PromptInput`, `PromptValue`, `PromptVariables`, `PromptVariableNames`、`MCPState`, `MCPServerItem`, `MCPServerEntry`, `MCPServerPreset`, `MCPServerModeOptions`、さらに各コンポーザブルの `Use*Options` / `Use*Return`。
 
 ## `vue-llm/providers`
 
@@ -58,11 +60,13 @@ description: 'vue-llm の API リファレンス：コンポーザブル、プ�
 
 ## `vue-llm/server`
 
-[`createLLMHandler`](/ja/guide/server#createllmhandler)（[サーバーツール](/ja/guide/server#server-tools) を含む）、[`createProxyProvider`](/ja/guide/server#createproxyprovider)、[`streamToSSE`](/ja/guide/server#streamtosse)。
+[`createLLMHandler`](/ja/guide/server#createllmhandler)（[サーバーツール](/ja/guide/server#server-tools) を含む）、[`createProxyProvider`](/ja/guide/server#createproxyprovider)、[`streamToSSE`](/ja/guide/server#streamtosse)、[`createMCPConnector`](/ja/guide/mcp#server-mode)：ユーザーがバックエンド経由で自分の MCP サーバーを接続する。
 
 ## `vue-llm/mcp`
 
 [`mcpTools`](/ja/guide/mcp)：MCP サーバーのツールを `useChat` と `createLLMHandler` で使う（`@modelcontextprotocol/sdk` と併用）。
+
+[`handleMCPCallback`](/ja/guide/mcp#the-callback-page)：サインインのコールバックページで呼び出す。[`mcpServers`](/ja/guide/mcp#several-servers-usemcpservers)：Notion、Linear、Hugging Face、DeepWiki、GitHub のプリセット。`createMCPClient`：`useMCP` の土台となる、依存関係のない Streamable HTTP クライアント。`mcpTools` と併用できる。エラー：[`MCPUnsupportedServerError`](/ja/guide/mcp#which-servers-work-in-the-browser)、`MCPHTTPError`、`MCPAuthError`、`MCPProtocolError`。
 
 ## `vue-llm/devtools`
 
