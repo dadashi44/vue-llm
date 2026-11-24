@@ -14,6 +14,9 @@ export type { UsePromptInputOptions, UsePromptInputReturn, PromptInputChat } fro
 
 export { useAutoScroll } from './composables/use-auto-scroll.js'
 export type { UseAutoScrollOptions, UseAutoScrollReturn } from './composables/use-auto-scroll.js'
+
+export { useMCP } from './composables/use-mcp.js'
+export type { UseMCPOptions, UseMCPReturn, MCPState } from './composables/use-mcp.js'
 export { createPrompt, createChatPrompt, renderTemplate } from './core/prompt.js'
 export type {
   PromptTemplate,
