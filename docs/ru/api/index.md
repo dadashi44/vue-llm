@@ -14,6 +14,8 @@ description: 'Справочник API vue-llm: композаблы, прова
 | [`useCompletion(options)`](/ru/guide/use-completion) | Стриминговое одноразовое дополнение текста |
 | [`useObject(options)`](/ru/guide/use-object) | Стриминг структурированного JSON |
 | [`usePrompt(template, variables)`](/ru/guide/prompt-templates#useprompt) | Реактивный рендеринг промпта |
+| [`useMCP(options)`](/ru/guide/mcp#one-server-usemcp) | Пользователь подключает один MCP-сервер: вход, состояние, реактивные инструменты |
+| [`useMCPServers(options?)`](/ru/guide/mcp#several-servers-usemcpservers) | Список MCP-серверов, которые пользователь включает, в которые входит и которые добавляет по URL |
 
 ### Chat UI (headless) {#chat-ui-headless}
 
@@ -50,7 +52,7 @@ description: 'Справочник API vue-llm: композаблы, прова
 
 ### Типы {#types}
 
-`UIMessage`, `UIMessagePart`, `TextPart`, `ReasoningPart`, `ToolCallPart`, `FilePart`, `SourcePart`, `ToolDefinition`, `ChatTool`, `ToolCallState`, `ToolExecutionContext`, `ToolComponentProps`, `DeepPartial`, `ChatStatus`, `FinishReason`, `Usage`, `LLMProvider`, `ChatRequest`, `ChatMessage`, `ContentPart`, `ChatStreamResult`, `ChatStreamChunk`, `ChatResponse`, `Middleware`, `ChatHandler`, `RetryOptions`, `RateLimitOptions`, `ChatStorage`, `WebStorageOptions`, `FileInput`, `SendMessageInput`, `PromptTemplate`, `ChatPromptTemplate`, `ChatPromptMessage`, `PromptOptions`, `PromptInput`, `PromptValue`, `PromptVariables`, `PromptVariableNames`, а также `Use*Options` / `Use*Return` каждого композабла.
+`UIMessage`, `UIMessagePart`, `TextPart`, `ReasoningPart`, `ToolCallPart`, `FilePart`, `SourcePart`, `ToolDefinition`, `ChatTool`, `ToolCallState`, `ToolExecutionContext`, `ToolComponentProps`, `DeepPartial`, `ChatStatus`, `FinishReason`, `Usage`, `LLMProvider`, `ChatRequest`, `ChatMessage`, `ContentPart`, `ChatStreamResult`, `ChatStreamChunk`, `ChatResponse`, `Middleware`, `ChatHandler`, `RetryOptions`, `RateLimitOptions`, `ChatStorage`, `WebStorageOptions`, `FileInput`, `SendMessageInput`, `PromptTemplate`, `ChatPromptTemplate`, `ChatPromptMessage`, `PromptOptions`, `PromptInput`, `PromptValue`, `PromptVariables`, `PromptVariableNames`, `MCPState`, `MCPServerItem`, `MCPServerEntry`, `MCPServerPreset`, `MCPServerModeOptions`, а также `Use*Options` / `Use*Return` каждого композабла.
 
 ## `vue-llm/providers` {#vue-llm-providers}
 
@@ -58,11 +60,13 @@ description: 'Справочник API vue-llm: композаблы, прова
 
 ## `vue-llm/server` {#vue-llm-server}
 
-[`createLLMHandler`](/ru/guide/server#createllmhandler) (с [серверными инструментами](/ru/guide/server#server-tools)), [`createProxyProvider`](/ru/guide/server#createproxyprovider), [`streamToSSE`](/ru/guide/server#streamtosse).
+[`createLLMHandler`](/ru/guide/server#createllmhandler) (с [серверными инструментами](/ru/guide/server#server-tools)), [`createProxyProvider`](/ru/guide/server#createproxyprovider), [`streamToSSE`](/ru/guide/server#streamtosse), [`createMCPConnector`](/ru/guide/mcp#server-mode): пользователи подключают свои MCP-серверы через ваш бэкенд.
 
 ## `vue-llm/mcp` {#vue-llm-mcp}
 
 [`mcpTools`](/ru/guide/mcp): инструменты MCP-сервера для `useChat` и `createLLMHandler` (вместе с `@modelcontextprotocol/sdk`).
+
+[`handleMCPCallback`](/ru/guide/mcp#the-callback-page): вызывается на странице возврата после входа. [`mcpServers`](/ru/guide/mcp#several-servers-usemcpservers): готовые описания проверенных серверов. `createMCPClient`: MCP-клиент на Streamable HTTP без зависимостей, на котором построен `useMCP`; работает с `mcpTools`. Ошибки: [`MCPUnsupportedServerError`](/ru/guide/mcp#which-servers-work-in-the-browser), `MCPHTTPError`, `MCPAuthError`, `MCPProtocolError`.
 
 ## `vue-llm/devtools` {#vue-llm-devtools}
 
