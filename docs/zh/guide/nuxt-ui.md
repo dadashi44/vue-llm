@@ -1,12 +1,15 @@
 ---
-description: '在 vue-llm 中使用 Nuxt UI 聊天组件（UChatMessages、UChatPrompt、UChatTool）：toUIMessages 将消息转换为 AI SDK 格式，Nuxt UI 的示例可直接使用。'
+description: '在 vue-llm 中使用 Nuxt UI 聊天组件（UChatMessages、UChatPrompt、UChatTool）：toUIMessages 将消息转换为 AI SDK 格式，Nuxt UI 的示例只需少量修改即可使用。'
 ---
 
 # Nuxt UI
 
-[Nuxt UI](https://ui.nuxt.com) 提供了一组聊天组件——`UChatMessages`、`UChatPrompt`、`UChatPromptSubmit`、`UChatReasoning`、`UChatTool`、`UChatPalette`——它们是按照 Vercel AI SDK 的消息格式构建的。它们可以配合 vue-llm 的 `useChat` 使用；`toUIMessages` 负责转换消息，因此你可以直接复制 Nuxt UI 的示例和聊天模板。
+[Nuxt UI](https://ui.nuxt.com) 提供了一组聊天组件——`UChatMessages`、`UChatPrompt`、`UChatPromptSubmit`、`UChatReasoning`、`UChatTool`、`UChatPalette`——它们是按照 Vercel AI SDK 的消息格式构建的。它们可以配合 vue-llm 的 `useChat` 使用：`toUIMessages` 负责转换消息，因此 Nuxt UI 的示例和聊天模板只需少量修改：
 
-无需安装 `ai` 或 `@ai-sdk/vue`。
+- 将 `toUIMessages(chat.messages.value)` 作为 `messages` 传入，并用 `.value` 读取 `status` 和 `input`（vue-llm 返回 ref，而 AI SDK 的 `Chat` 是普通属性）；
+- 对于等待用户操作的工具，使用 vue-llm 的 `addToolResult({ toolCallId, result })`，而不是 AI SDK 的 `addToolOutput`。
+
+无需 `@ai-sdk/vue`，运行时也不需要 `ai`：Nuxt UI 只为类型而导入它。未安装 `ai` 时，插槽属性的类型较为宽松；安装后，`toUIMessages` 返回的值可作为其 `UIMessage` 通过类型检查。
 
 ## 示例 {#example}
 
@@ -61,6 +64,6 @@ text、reasoning 和 file 部分在两种格式中相同，会被直接复制。
 | `source` | `source-url`（`sourceId` 即 URL） |
 | 带有 `name` 的 `data` | `data-<name>` |
 
-`id`、`role` 和 `metadata` 会保留。原始消息不会被修改：`toUIMessages` 是只读的，你仍然通过 `useChat` 操作聊天——例如，对于等待用户操作的工具，使用 `addToolResult({ toolCallId, result })`。
+`id`、`role` 和 `metadata` 会保留。转换是浅层的：原始消息不会被修改，但文本、reasoning 和文件部分以及 `metadata` 与原消息共享，因此请将结果视为只读，并通过 `useChat` 操作聊天。
 
-返回的类型 `AISDKUIMessage` 和 `AISDKUIPart` 描述了 AI SDK 的格式，且不依赖 `ai` 包。
+返回的类型 `AISDKUIMessage`、`AISDKUIPart` 和 `AISDKToolPart` 描述了 AI SDK 的格式，且不依赖 `ai` 包；它们已通过测试，可赋值给 `ai` 的 `UIMessage`（v6 和 v7）。

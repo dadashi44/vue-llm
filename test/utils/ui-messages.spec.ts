@@ -58,6 +58,32 @@ describe('toUIMessages', () => {
     expect(message.parts[0]).toEqual({ type: 'tool-search', toolCallId: 'c1', state: 'output-error', input: { q: 'x' }, errorText: 'Timed out' })
   })
 
+  it('always gives a failed tool call an errorText', () => {
+    const [message] = toUIMessages([assistant([{ type: 'tool-call', toolCallId: 'c1', toolName: 'search', args: {}, state: 'error' }])])
+
+    expect(message.parts[0]).toEqual({ type: 'tool-search', toolCallId: 'c1', state: 'output-error', input: {}, errorText: '' })
+  })
+
+  it('sets output for a finished tool call even when the result is undefined', () => {
+    const [message] = toUIMessages([assistant([{ type: 'tool-call', toolCallId: 'c1', toolName: 'search', args: {}, state: 'result' }])])
+
+    expect(message.parts[0]).toHaveProperty('output', undefined)
+    expect(message.parts[0]).toMatchObject({ state: 'output-available' })
+  })
+
+  it('keeps hyphens in tool names so getToolName can read them back', () => {
+    const [message] = toUIMessages([assistant([{ type: 'tool-call', toolCallId: 'c1', toolName: 'notion_notion-search', args: {}, state: 'running' }])])
+
+    expect(message.parts[0].type).toBe('tool-notion_notion-search')
+    expect(message.parts[0].type.split('-').slice(1).join('-')).toBe('notion_notion-search')
+  })
+
+  it('leaves out the title of a source without one', () => {
+    const [message] = toUIMessages([assistant([{ type: 'source', url: 'https://vuejs.org' }])])
+
+    expect(message.parts).toEqual([{ type: 'source-url', sourceId: 'https://vuejs.org', url: 'https://vuejs.org' }])
+  })
+
   it('turns sources into source-url parts', () => {
     const [message] = toUIMessages([assistant([{ type: 'source', url: 'https://vuejs.org', title: 'Vue' }])])
 

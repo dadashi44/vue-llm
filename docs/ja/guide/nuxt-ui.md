@@ -1,12 +1,15 @@
 ---
-description: 'vue-llm で Nuxt UI のチャットコンポーネント（UChatMessages、UChatPrompt、UChatTool）を使う：toUIMessages がメッセージを AI SDK の形式に変換するので、Nuxt UI のサンプルがそのまま動きます。'
+description: 'vue-llm で Nuxt UI のチャットコンポーネント（UChatMessages、UChatPrompt、UChatTool）を使う：toUIMessages がメッセージを AI SDK の形式に変換するので、Nuxt UI のサンプルが少し修正するだけで動きます。'
 ---
 
 # Nuxt UI
 
-[Nuxt UI](https://ui.nuxt.com) には、Vercel AI SDK のメッセージ形式を前提としたチャットコンポーネント（`UChatMessages`、`UChatPrompt`、`UChatPromptSubmit`、`UChatReasoning`、`UChatTool`、`UChatPalette`）があります。これらは vue-llm の `useChat` と一緒に使えます。`toUIMessages` がメッセージを変換するので、Nuxt UI のサンプルやチャットテンプレートをそのままコピーできます。
+[Nuxt UI](https://ui.nuxt.com) には、Vercel AI SDK のメッセージ形式を前提としたチャットコンポーネント（`UChatMessages`、`UChatPrompt`、`UChatPromptSubmit`、`UChatReasoning`、`UChatTool`、`UChatPalette`）があります。これらは vue-llm の `useChat` と一緒に使えます。`toUIMessages` がメッセージを変換するので、Nuxt UI のサンプルやチャットテンプレートは少し修正するだけで使えます。
 
-`ai` や `@ai-sdk/vue` をインストールする必要はありません。
+- `toUIMessages(chat.messages.value)` を `messages` として渡し、`status` と `input` は `.value` で読みます（vue-llm は ref を返し、AI SDK の `Chat` は通常のプロパティです）。
+- ユーザーの応答を待つツールには、AI SDK の `addToolOutput` ではなく vue-llm の `addToolResult({ toolCallId, result })` で応答します。
+
+`@ai-sdk/vue` は不要で、`ai` も実行時には不要です。Nuxt UI は型のためだけにインポートします。`ai` をインストールしていない場合、スロットの props は緩く型付けされます。インストールしている場合、`toUIMessages` は `UIMessage` として型チェックを通る値を返します。
 
 ## 例 {#example}
 
@@ -61,6 +64,6 @@ text、reasoning、file のパーツは両方の形式で同じなので、そ�
 | `source` | `source-url`（`sourceId` は URL） |
 | `name` を持つ `data` | `data-<name>` |
 
-`id`、`role`、`metadata` は保持されます。元のメッセージは変更されません。`toUIMessages` は読み取り専用で、チャットの操作は引き続き `useChat` で行います。たとえば、ユーザーの応答を待つツールには `addToolResult({ toolCallId, result })` を使います。
+`id`、`role`、`metadata` は保持されます。変換は浅いものです。元のメッセージは変更されませんが、テキスト・reasoning・ファイルの各パートと `metadata` は元のメッセージと共有されるため、結果は読み取り専用として扱い、チャットの操作は `useChat` で行います。
 
-返される型 `AISDKUIMessage` と `AISDKUIPart` は、`ai` パッケージに依存せずに AI SDK の形式を表します。
+返される型 `AISDKUIMessage`、`AISDKUIPart`、`AISDKToolPart` は、`ai` パッケージに依存せずに AI SDK の形式を表し、`ai` の `UIMessage`（v6 と v7）に代入可能であることがテストされています。

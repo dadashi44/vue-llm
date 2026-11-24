@@ -1,12 +1,15 @@
 ---
-description: 'Use Nuxt UI chat components (UChatMessages, UChatPrompt, UChatTool) with vue-llm: toUIMessages converts messages to the AI SDK shape, so Nuxt UI examples work as they are.'
+description: 'Use Nuxt UI chat components (UChatMessages, UChatPrompt, UChatTool) with vue-llm: toUIMessages converts messages to the AI SDK shape, so Nuxt UI examples work with small changes.'
 ---
 
 # Nuxt UI
 
-[Nuxt UI](https://ui.nuxt.com) has chat components — `UChatMessages`, `UChatPrompt`, `UChatPromptSubmit`, `UChatReasoning`, `UChatTool`, `UChatPalette` — built for the message shape of the Vercel AI SDK. They work with `useChat` from vue-llm; `toUIMessages` converts the messages so you can copy Nuxt UI's examples and chat template as they are.
+[Nuxt UI](https://ui.nuxt.com) has chat components — `UChatMessages`, `UChatPrompt`, `UChatPromptSubmit`, `UChatReasoning`, `UChatTool`, `UChatPalette` — built for the message shape of the Vercel AI SDK. They work with `useChat` from vue-llm: `toUIMessages` converts the messages, so Nuxt UI's examples and chat template need only small changes:
 
-You don't need to install `ai` or `@ai-sdk/vue`.
+- pass `toUIMessages(chat.messages.value)` as `messages`, and read `status` and `input` with `.value` (vue-llm returns refs, the AI SDK's `Chat` plain properties);
+- answer a tool waiting for the user with vue-llm's `addToolResult({ toolCallId, result })` instead of the AI SDK's `addToolOutput`.
+
+You don't need `@ai-sdk/vue`, and `ai` isn't needed at runtime: Nuxt UI imports it only for types. Without `ai` installed, the slot props are typed loosely; with it, `toUIMessages` returns values that type-check as its `UIMessage`.
 
 ## Example
 
@@ -61,6 +64,6 @@ Text, reasoning and file parts are the same in both shapes and are copied. The r
 | `source` | `source-url` (`sourceId` is the URL) |
 | `data` with `name` | `data-<name>` |
 
-`id`, `role` and `metadata` are kept. The original messages aren't changed: `toUIMessages` is read-only, and you keep acting on the chat through `useChat` — for example `addToolResult({ toolCallId, result })` for a tool waiting for the user.
+`id`, `role` and `metadata` are kept. The conversion is shallow: the original messages aren't changed, but text, reasoning and file parts and `metadata` are shared with them, so treat the result as read-only and act on the chat through `useChat`.
 
-The returned types `AISDKUIMessage` and `AISDKUIPart` describe the AI SDK shape without depending on the `ai` package.
+The returned types `AISDKUIMessage`, `AISDKUIPart` and `AISDKToolPart` describe the AI SDK shape without depending on the `ai` package, and are tested to be assignable to `ai`'s `UIMessage` (v6 and v7).

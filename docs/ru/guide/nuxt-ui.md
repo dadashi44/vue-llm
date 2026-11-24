@@ -1,12 +1,15 @@
 ---
-description: 'Чат-компоненты Nuxt UI (UChatMessages, UChatPrompt, UChatTool) с vue-llm: toUIMessages преобразует сообщения в формат AI SDK, так что примеры Nuxt UI работают как есть.'
+description: 'Чат-компоненты Nuxt UI (UChatMessages, UChatPrompt, UChatTool) с vue-llm: toUIMessages преобразует сообщения в формат AI SDK, так что примеры Nuxt UI работают с небольшими правками.'
 ---
 
 # Nuxt UI
 
-[Nuxt UI](https://ui.nuxt.com) содержит чат-компоненты — `UChatMessages`, `UChatPrompt`, `UChatPromptSubmit`, `UChatReasoning`, `UChatTool`, `UChatPalette` — рассчитанные на формат сообщений Vercel AI SDK. Они работают с `useChat` из vue-llm; `toUIMessages` преобразует сообщения, так что примеры и чат-шаблон Nuxt UI можно копировать как есть.
+[Nuxt UI](https://ui.nuxt.com) содержит чат-компоненты — `UChatMessages`, `UChatPrompt`, `UChatPromptSubmit`, `UChatReasoning`, `UChatTool`, `UChatPalette` — рассчитанные на формат сообщений Vercel AI SDK. Они работают с `useChat` из vue-llm: `toUIMessages` преобразует сообщения, так что примерам и чат-шаблону Nuxt UI нужны лишь небольшие правки:
 
-Устанавливать `ai` или `@ai-sdk/vue` не нужно.
+- передавайте `toUIMessages(chat.messages.value)` как `messages`, а `status` и `input` читайте через `.value` (vue-llm возвращает ref, а `Chat` из AI SDK — обычные свойства);
+- на инструмент, который ждёт ответа пользователя, отвечайте через `addToolResult({ toolCallId, result })` из vue-llm вместо `addToolOutput` из AI SDK.
+
+Пакет `@ai-sdk/vue` не нужен, а `ai` не нужен во время выполнения: Nuxt UI импортирует его только ради типов. Без установленного `ai` пропсы слотов типизированы нестрого; с ним `toUIMessages` возвращает значения, которые проходят проверку типов как его `UIMessage`.
 
 ## Пример {#example}
 
@@ -61,6 +64,6 @@ const messages = computed(() => toUIMessages(chat.messages.value))
 | `source` | `source-url` (`sourceId` — это URL) |
 | `data` с `name` | `data-<name>` |
 
-`id`, `role` и `metadata` сохраняются. Исходные сообщения не меняются: `toUIMessages` только читает, а управлять чатом вы продолжаете через `useChat` — например, `addToolResult({ toolCallId, result })` для инструмента, который ждёт ответа пользователя.
+`id`, `role` и `metadata` сохраняются. Преобразование поверхностное: исходные сообщения не меняются, но текстовые, reasoning- и файловые части и `metadata` общие с ними, поэтому считайте результат только для чтения, а управляйте чатом через `useChat`.
 
-Возвращаемые типы `AISDKUIMessage` и `AISDKUIPart` описывают формат AI SDK без зависимости от пакета `ai`.
+Возвращаемые типы `AISDKUIMessage`, `AISDKUIPart` и `AISDKToolPart` описывают формат AI SDK без зависимости от пакета `ai`; проверено, что они совместимы с `UIMessage` из `ai` (v6 и v7).
