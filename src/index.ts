@@ -17,6 +17,10 @@ export type { UseAutoScrollOptions, UseAutoScrollReturn } from './composables/us
 
 export { useMCP } from './composables/use-mcp.js'
 export type { UseMCPOptions, UseMCPReturn, MCPState } from './composables/use-mcp.js'
+
+export { useMCPServers } from './composables/use-mcp-servers.js'
+export type { UseMCPServersOptions, UseMCPServersReturn, MCPServerItem, MCPServerEntry } from './composables/use-mcp-servers.js'
+export type { MCPServerPreset } from './mcp/servers.js'
 export { createPrompt, createChatPrompt, renderTemplate } from './core/prompt.js'
 export type {
   PromptTemplate,

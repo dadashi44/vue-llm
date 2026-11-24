@@ -26,3 +26,6 @@ export type { MCPAuthChallenge } from './mcp/oauth.js'
 
 export { handleMCPCallback } from './mcp/callback.js'
 export type { MCPCallbackMessage } from './mcp/callback.js'
+
+export { mcpServers } from './mcp/servers.js'
+export type { MCPServerPreset } from './mcp/servers.js'
