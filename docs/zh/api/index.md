@@ -84,3 +84,7 @@ description: 'vue-llm API 参考：组合式函数、提供方、中间件、服
 ## `vue-llm/components`
 
 [`MessageParts`](/zh/guide/components#messageparts)、[`StreamMarkdown`](/zh/guide/components#streammarkdown)、[`renderMarkdown`](/zh/guide/components#security)、`renderInline`、`escapeHTML`。
+
+## `vue-llm/components/vue2`
+
+相同的导出，针对 [Vue 2.7](/zh/guide/components#vue-2-7) 构建，另外还有类型 `StreamMarkdownProps`、`MessagePartsProps`、`MessagePartsSlotProps`。

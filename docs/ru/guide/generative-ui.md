@@ -131,7 +131,7 @@ const components = { get_weather: WeatherCard, confirm_booking: BookingCard }
 </template>
 ```
 
-Это работает и на Vue 2.7, где `vue-llm/components` недоступен.
+Это работает без `vue-llm/components` и на любой версии Vue.
 
 ## Стриминг аргументов {#streaming-arguments}
 

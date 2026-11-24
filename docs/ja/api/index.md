@@ -84,3 +84,7 @@ description: 'vue-llm の API リファレンス：コンポーザブル、プ�
 ## `vue-llm/components`
 
 [`MessageParts`](/ja/guide/components#messageparts), [`StreamMarkdown`](/ja/guide/components#streammarkdown), [`renderMarkdown`](/ja/guide/components#security), `renderInline`, `escapeHTML`.
+
+## `vue-llm/components/vue2`
+
+同じエクスポートを [Vue 2.7](/ja/guide/components#vue-2-7) 向けにビルドしたもので、型 `StreamMarkdownProps`、`MessagePartsProps`、`MessagePartsSlotProps` も含まれます。

@@ -13,9 +13,16 @@ Nuxt 模块会为你自动注册这两个组件和样式表。
 
 如需一套完整、带样式的聊天界面，请参阅 [聊天界面](./chat-ui)。
 
-::: info
-组件需要 Vue 3。在 Vue 2.7 中，请将 `renderMarkdown` 与 `v-html` 搭配使用，它是纯 TypeScript 实现。
-:::
+## Vue 2.7 {#vue-2-7}
+
+在 Vue 2.7 中，请从 `vue-llm/components/vue2` 导入同样的组件。它们由同一份源码通过 Vue 2.7 编译器构建，并在 Vue 2.7 上经过测试：
+
+```ts
+import { MessageParts, StreamMarkdown } from 'vue-llm/components/vue2'
+import 'vue-llm/style.css'
+```
+
+props、插槽和 `tool-result` 事件均相同。在渲染函数中请按 Vue 2 的方式传入 props：`h(MessageParts, { props: { message } })`。
 
 ## MessageParts
 

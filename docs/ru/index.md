@@ -88,7 +88,7 @@ vue-llm — open-source библиотека на TypeScript, которая д�
 
 ### Поддерживает ли vue-llm Vue 2? {#does-vue-llm-support-vue-2}
 
-Композаблы (useChat, useCompletion, useObject, usePrompt) работают на Vue 2.7 и Vue 3.3+. Компонентам нужен Vue 3.
+Композаблы (useChat, useCompletion, useObject, usePrompt) работают на Vue 2.7 и Vue 3.3+. Компоненты тоже: на Vue 2.7 импортируйте их из `vue-llm/components/vue2`.
 
 ### Чем vue-llm отличается от Vercel AI SDK? {#how-is-vue-llm-different-from-the-vercel-ai-sdk}
 

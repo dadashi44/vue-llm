@@ -30,7 +30,7 @@ yarn add vue-llm
 |---|---|---|
 | 组合式函数（`useChat`、`useCompletion`、`useObject`、`usePrompt`） | ✓ | ✓ |
 | 提供方、中间件、存储、提示词模板、服务端 | ✓ | ✓ |
-| `vue-llm/components` | ✓ | — |
+| 组件 | `vue-llm/components` | [`vue-llm/components/vue2`](./components#vue-2-7) |
 | `vue-llm/nuxt` | Nuxt 3/4 | — |
 
 Vue 2.7 通过其内置的组合式 API 获得支持：在 `setup()` 中使用这些组合式函数即可（选项式 API 组件同样可以在 `setup()` 中调用）。CI 会在两个版本上运行完整的测试套件。不支持 Vue 2.6 及更早版本；升级到 2.7 只是一次小版本更新。

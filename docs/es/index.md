@@ -88,7 +88,7 @@ Sí. Añade 'vue-llm/nuxt' a modules en nuxt.config para importar automáticamen
 
 ### ¿vue-llm es compatible con Vue 2? {#does-vue-llm-support-vue-2}
 
-Los composables (useChat, useCompletion, useObject, usePrompt) funcionan en Vue 2.7 y Vue 3.3+. Los componentes requieren Vue 3.
+Los composables (useChat, useCompletion, useObject, usePrompt) funcionan en Vue 2.7 y Vue 3.3+. Los componentes también: en Vue 2.7 impórtalos desde `vue-llm/components/vue2`.
 
 ### ¿En qué se diferencia vue-llm del Vercel AI SDK? {#how-is-vue-llm-different-from-the-vercel-ai-sdk}
 

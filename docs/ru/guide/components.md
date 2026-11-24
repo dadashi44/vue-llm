@@ -13,9 +13,16 @@ Nuxt-модуль регистрирует оба компонента и таб
 
 Полноценный стилизованный интерфейс чата описан в разделе [Chat UI](./chat-ui).
 
-::: info
-Компонентам нужен Vue 3. На Vue 2.7 используйте `renderMarkdown` вместе с `v-html` — это обычный TypeScript.
-:::
+## Vue 2.7 {#vue-2-7}
+
+На Vue 2.7 импортируйте те же компоненты из `vue-llm/components/vue2`. Они собираются из того же исходного кода компилятором Vue 2.7 и протестированы на Vue 2.7:
+
+```ts
+import { MessageParts, StreamMarkdown } from 'vue-llm/components/vue2'
+import 'vue-llm/style.css'
+```
+
+Props, слоты и событие `tool-result` те же. В render-функции передавайте props способом Vue 2: `h(MessageParts, { props: { message } })`.
 
 ## MessageParts {#messageparts}
 

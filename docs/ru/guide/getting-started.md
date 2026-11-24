@@ -30,7 +30,7 @@ yarn add vue-llm
 |---|---|---|
 | Композаблы (`useChat`, `useCompletion`, `useObject`, `usePrompt`) | ✓ | ✓ |
 | Провайдеры, middleware, хранилища, шаблоны промптов, сервер | ✓ | ✓ |
-| `vue-llm/components` | ✓ | — |
+| Компоненты | `vue-llm/components` | [`vue-llm/components/vue2`](./components#vue-2-7) |
 | `vue-llm/nuxt` | Nuxt 3/4 | — |
 
 Vue 2.7 поддерживается через встроенный Composition API — используйте композаблы в `setup()` (компоненты на Options API тоже могут вызывать их в `setup()`). Весь набор тестов прогоняется в CI на обеих версиях. Vue 2.6 и старше не поддерживаются; переход на 2.7 — минорное обновление.

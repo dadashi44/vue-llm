@@ -131,7 +131,7 @@ Esa es toda la configuración. `get_weather` se ejecuta solo y el modelo contin�
 </template>
 ```
 
-Esto también funciona en Vue 2.7, donde `vue-llm/components` no está disponible.
+Esto funciona sin `vue-llm/components` y en cualquier versión de Vue.
 
 ## Streaming de argumentos {#streaming-arguments}
 

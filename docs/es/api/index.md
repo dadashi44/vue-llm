@@ -84,3 +84,7 @@ Estilos para los componentes.
 ## `vue-llm/components`
 
 [`MessageParts`](/es/guide/components#messageparts), [`StreamMarkdown`](/es/guide/components#streammarkdown), [`renderMarkdown`](/es/guide/components#security), `renderInline`, `escapeHTML`.
+
+## `vue-llm/components/vue2`
+
+Los mismos exports, construidos para [Vue 2.7](/es/guide/components#vue-2-7), más los tipos `StreamMarkdownProps`, `MessagePartsProps`, `MessagePartsSlotProps`.

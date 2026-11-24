@@ -30,7 +30,7 @@ peer dependency は `vue` のみで、ランタイム依存関係はありませ
 |---|---|---|
 | コンポーザブル（`useChat`、`useCompletion`、`useObject`、`usePrompt`） | ✓ | ✓ |
 | プロバイダー、ミドルウェア、ストレージ、プロンプトテンプレート、サーバー | ✓ | ✓ |
-| `vue-llm/components` | ✓ | — |
+| コンポーネント | `vue-llm/components` | [`vue-llm/components/vue2`](./components#vue-2-7) |
 | `vue-llm/nuxt` | Nuxt 3/4 | — |
 
 Vue 2.7 は組み込みの Composition API によってサポートされます。コンポーザブルは `setup()` の中で使用してください（Options API のコンポーネントでも `setup()` から呼び出せます）。CI ではテストスイート全体を両方のバージョンで実行しています。Vue 2.6 以前はサポートしていませんが、2.7 へのアップグレードはマイナーアップデートで済みます。

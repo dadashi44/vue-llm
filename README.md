@@ -31,7 +31,7 @@
 - **MCP** — tools of any MCP server (search, files, GitHub, databases) in `useChat` and on the server (`vue-llm/mcp`); users connect their own servers (Notion, Linear…) with OAuth sign-in via `useMCP` / `useMCPServers`, in the browser or through your backend (`createMCPConnector`)
 - **Vue DevTools** — an LLM tab with every chat, request timeline, time to first token, tool calls and token usage (`vue-llm/devtools`)
 - **Nuxt module** — auto-imports, components, DevTools in development, server-side runtime config
-- **Zero runtime deps** — only `vue` as peer dependency (Vue 3.3+, composables also on Vue 2.7)
+- **Zero runtime deps** — only `vue` as peer dependency (Vue 3.3+ and Vue 2.7, components included)
 - **TypeScript** — full type safety, exported types
 
 ## Quick Start

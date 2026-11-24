@@ -131,7 +131,7 @@ O `MessageParts` é opcional. Chamadas de ferramentas são partes comuns da mens
 </template>
 ```
 
-Isso também funciona no Vue 2.7, onde o `vue-llm/components` não está disponível.
+Isso funciona sem o `vue-llm/components` e em qualquer versão do Vue.
 
 ## Streaming dos argumentos {#streaming-arguments}
 
